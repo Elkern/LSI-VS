@@ -1,0 +1,658 @@
+<mvc:View xmlns:plugins="sap.m.plugins"
+    xmlns:upload="sap.m.upload"
+    xmlns:dnd="sap.f.dnd"
+    xmlns:table="sap.ui.mdc.table"
+    xmlns:unified="sap.ui.unified"
+    xmlns:layout="sap.ui.layout"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:f="sap.f"
+    xmlns:core="sap.ui.core"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:macros="sap.fe.macros"
+    xmlns:macrosF="sap.fe.macros.field"
+    xmlns:html="http://www.w3.org/1999/xhtml" controllerName="zbmlgp2psupreg02.project1.ext.main.Main">
+    <f:DynamicPage id="supRegPage" stickySubheaderProvider="supRegWizard" toggleHeaderOnTitleClick="false" class="sapUiNoContentPadding" showFooter="true">
+        <f:content>
+            <Wizard id="supRegWizard" class="sapUiResponsivePadding--header sapUiResponsivePadding--content" showNextButton="false" navigationChange="handleNavigationChange" renderMode="Page" backgroundDesign="Transparent">
+                <WizardStep id="step1" title="{i18n>txt_step1CntDetail} ({wizardModel>/GeneralViewData/Customernumber})" validated="false">
+                    <layout:BlockLayout>
+                        <layout:BlockLayoutRow>
+                            <layout:BlockLayoutCell>
+                                <form:SimpleForm layout="ColumnLayout" columnsL="3" columnsM="2" columnsXL="4">
+                                    <form:content>
+                                        <core:Title text="{i18n>txt_usrDetails}" />
+                                        <Label text="Supplier Country" required="true" />
+                                        <!-- <Input id="supCountry" placeholder="Choose Country" showSuggestion="true" showValueHelp="true" value="{wizardModel>/_AddressNum/CountryKey}" valueHelpRequest=".onCountryValueHelpRequest" suggestionRows="{/BankCountry_VH}" suggestionItemSelected=".onCountrySuggestionSelect">
+                                            <suggestionColumns>
+                                                <Column hAlign="Begin" popinDisplay="Inline" demandPopin="true">
+                                                    <Label text="Country"></Label>
+                                                </Column>
+                                                <Column hAlign="Begin" popinDisplay="Inline" demandPopin="true">
+                                                    <Label text="Country Name"></Label>
+                                                </Column>
+                                            </suggestionColumns>
+                                            <suggestionRows>
+                                                <ColumnListItem>
+                                                    <cells>
+                                                        <Label text="{Country}"></Label>
+                                                        <Label text="{CountryName}"></Label>
+                                                    </cells>
+                                                </ColumnListItem>
+                                            </suggestionRows>
+                                        </Input> -->
+                                        <Input id="supCountry" liveChange="onInputLiveChange" placeholder="Choose Country" showSuggestion="true" showValueHelp="true" value="{wizardModel>/DisplayCountry}" valueHelpRequest=".onCountryValueHelpRequest" suggestionRows="{/BankCountry_VH}" suggestionItemSelected=".onCountrySuggestionSelect">
+                                            <suggestionColumns>
+                                                <Column hAlign="Begin" popinDisplay="Inline" demandPopin="true">
+                                                    <Label text="Country" />
+                                                </Column>
+                                                <Column hAlign="Begin" popinDisplay="Inline" demandPopin="true">
+                                                    <Label text="Country Name" />
+                                                </Column>
+                                            </suggestionColumns>
+                                            <suggestionRows>
+                                                <ColumnListItem>
+                                                    <cells>
+                                                        <Label text="{Country}" />
+                                                        <Label text="{CountryName}" />
+                                                    </cells>
+                                                </ColumnListItem>
+                                            </suggestionRows>
+                                        </Input>
+                                        <!-- <macros:Field id="supCountry" value="{wizardModel>/_AddressNum/CountryKey}" contextPath="/AddressNum" metaPath="CountryKey" readOnly="false" change="onSupplierCountrySelected">
+                                        </macros:Field> -->
+                                        <!-- <ComboBox id="supCountry" selectedKey="{wizardModel>/GeneralViewData/Country}" items="{
+                                                    path: '/BankCountry_VH',
+                                                    sorter: { path: 'Country'},
+                                                    length: 500
+                                                }" loadItems="loadLanguages" change="onSupplierCountrySelected" selectionChange="onSupplierCountrySelected">
+                                            <core:Item key="{Country}" text="{CountryName} ({Country})"/>
+                                        </ComboBox> -->
+                                        <Label text="{i18n>txt_timeZone}" required="true" />
+                                        <macros:Field id="timezonem" value="{wizardModel>/GeneralViewData/CustTimezone}" metaPath="CustTimezone"  readOnly="false">
+                                        
+                                            <macros:layoutData>
+                                                <form:ColumnElementData cellsSmall="12" cellsLarge="12" />
+                                            </macros:layoutData>
+                                        </macros:Field>
+                                        <ComboBox id="timezone" visible="false" selectedKey="{wizardModel>/GeneralViewData/CustTimezone}" items="{
+                                                    path: '/TimeZone_VH',
+                                                    sorter: { path: 'TimeZoneCode'},
+                                                    length: 500
+                                                }" loadItems="loadLanguages">
+                                            <core:Item key="{TimeZoneCode}" text="{TimeZoneDesc} ({TimeZoneCode})" />
+                                        </ComboBox>
+
+                                        <Label text="{i18n>txt_supCntPerson}" required="true" />
+                                        <Input id="supplierContactPerson" liveChange="onInputLiveChange" value="{wizardModel>/GeneralViewData/Customername}" />
+
+                                        <Label text="{i18n>txt_supCntPersonEmail}" required="true" />
+                                        <Input id="supplierContactPersonEmailID" type="Email" value="{wizardModel>/GeneralViewData/Email}" editable="false" />
+
+                                        <Label text="{i18n>txt_cc_mobNum1}" required="true" />
+                                        <ComboBox id="ConutryCode_1" selectedKey="{wizardModel>/_AddressNum/TeleCode}" items="{
+                                                    path: '/CountryCode_VH',
+                                                    sorter: { path: 'Country'},
+                                                    length: 500
+                                                }" loadItems="loadLanguages">
+                                            <core:Item key="{TeleCode}" text="{TeleCode} ({Country})" />
+                                            <customData>
+                                                <core:CustomData key="filterProp" value="Country" />
+                                            </customData>
+                                            <layoutData>
+                                                <form:ColumnElementData cellsSmall="3" cellsLarge="2" />
+                                            </layoutData>
+                                        </ComboBox>
+                                        <Input type="Tel" id="PhoneNum1" value="{wizardModel>/_AddressNum/Telephone}" />
+                                        <Label text="{i18n>txt_cc_mobNum2}" required="true" />
+                                        <!-- <macros:Field id="Currency1" value="{wizardModel>/GeneralViewData/CurrencyKey1}" metaPath="/AddressNum/CountryKey" readOnly="false"></macros:Field> -->
+                                        <ComboBox id="ConutryCode_2" selectedKey="{wizardModel>/_AddressNum/TeleCode2}" items="{
+                                                    path: '/CountryCode_VH',
+                                                    sorter: { path: 'Country'},
+                                                    length: 500
+                                                }" loadItems="loadLanguages">
+                                            <core:Item key="{TeleCode}" text="{TeleCode} ({Country})" />
+                                            <customData>
+                                                <core:CustomData key="filterProp" value="Country" />
+                                            </customData>
+                                            <layoutData>
+                                                <form:ColumnElementData cellsSmall="3" cellsLarge="2" />
+                                            </layoutData>
+                                        </ComboBox>
+                                        <Input type="Tel" id="PhoneNum2" value="{wizardModel>/_AddressNum/Telephone2}" />
+                                        <Label text="{i18n>txt_curr}" required="true" />
+
+                                        <macros:Field id="Currencym" class="wideMacroField" value="{wizardModel>/GeneralViewData/CurrencyKey}" metaPath="CurrencyKey" readOnly="false">
+                                            <!-- <macros:formatOptions displayMode="ValueDescription" /> -->
+                                            <macros:layoutData>
+                                                <form:ColumnElementData cellsSmall="12" cellsLarge="12" />
+                                            </macros:layoutData>
+                                        </macros:Field>
+
+                                        <ComboBox id="Currency" visible="false" selectedKey="{wizardModel>/GeneralViewData/CurrencyKey}" items="{
+                                                    path: '/CurrencyStdVH',
+                                                    sorter: { path: 'Currency'},
+                                                    length: 500
+                                                }" loadItems="loadLanguages">
+                                            <core:Item key="{Currency}" text="{Currency_Text} ({Currency})" />
+                                        </ComboBox>
+
+                                        <Label text="{i18n>txt_hybeCntPerson}" required="true" />
+                                        <Input id="hybeContactPerson" type="Email" value="{wizardModel>/GeneralViewData/HybeContactPerson}" />
+                                    </form:content>
+                                </form:SimpleForm>
+                            </layout:BlockLayoutCell>
+                        </layout:BlockLayoutRow>
+
+                        <layout:BlockLayoutRow>
+                            <layout:BlockLayoutCell>
+                                <form:SimpleForm layout="ColumnLayout" columnsXL="4" columnsL="3" columnsM="2">
+                                    <form:content>
+                                        <core:Title text="{i18n>txt_legalAddTitle}" />
+                                        <Label text="{i18n>txt_compName1}" required="true" />
+                                        <Input type="Text" value="{wizardModel>/GeneralViewData/Companyname1}" maxLength="40" />
+
+                                        <Label text="{i18n>txt_compName2}" required="true" />
+                                        <Input type="Text" value="{wizardModel>/GeneralViewData/Companyname2}" maxLength="40" />
+
+                                        <Label text="{i18n>txt_addLine1}" required="true" />
+                                        <Input id="iName" type="Text" value="{wizardModel>/_AddressNum/Name}" maxLength="40" />
+
+                                        <Label text="{i18n>txt_addLine2}" required="true" />
+                                        <Input type="Text" value="{wizardModel>/_AddressNum/Name2}" maxLength="40" />
+
+                                        <Label text="{i18n>txt_city}" required="true" />
+                                        <ComboBox id="city" selectedKey="{wizardModel>/_AddressNum/City}" items="{
+                                                    path: '/CityCode_VH',
+                                                    sorter: { path: 'City'},
+                                                    length: 500
+                                                }" loadItems="loadLanguages">
+                                            <core:Item key="{City}" text="{CityText} ({City})" />
+                                        </ComboBox>
+
+                                        <Label text="{i18n>txt_state}" required="true" />
+                                        <macros:Field id="statem" value="{wizardModel>/_AddressNum/Region}" metaPath="Region" readOnly="false">
+                                            <macros:layoutData>
+                                                <form:ColumnElementData cellsSmall="12" cellsLarge="12" />
+                                            </macros:layoutData>
+                                        </macros:Field>
+                                        <ComboBox id="state" visible="false" selectedKey="{wizardModel>/_AddressNum/Region}" items="{
+                                                    path: '/State_VH',
+                                                    sorter: { path: 'RegionCode'},
+                                                    length: 500
+                                                }" loadItems="loadLanguages">
+                                            <core:Item key="{RegionCode}" text="{RegionText} ({RegionCode})" />
+                                            <customData>
+                                                <core:CustomData key="filterProp" value="Country" />
+                                            </customData>
+                                        </ComboBox>
+
+                                        <Label text="{i18n>txt_zipCode}" required="true" />
+                                        <Input type="Number" value="{wizardModel>/_AddressNum/PostalCode}" />
+
+                                        <Label text="{i18n>txt_prefLang}" required="true" />
+                                        <macros:Field id="prefLangm" value="{wizardModel>/GeneralViewData/Preferedlang}" metaPath="Preferedlang" readOnly="false">
+                                            <macros:layoutData>
+                                                <form:ColumnElementData cellsSmall="12" cellsLarge="12" />
+                                            </macros:layoutData>
+                                        </macros:Field>
+                                        <ComboBox id="prefLang" visible="false" selectedKey="{wizardModel>/_AddressNum/LanguageKey}" items="{
+                                                path: '/Language',
+                                                sorter: { path: 'LanguageCode'},
+                                                length: 500
+                                            }" loadItems="loadLanguages">
+                                            <core:Item key="{LanguageCode}" text="{LanguageName} ({LanguageCode})" />
+                                        </ComboBox>
+
+                                        <Label text="Type Of Industry" required="true" />
+                                        <ComboBox id="typeOfIndustry" selectedKey="">
+                                            <core:Item key="" text="" />
+                                        </ComboBox>
+
+                                        <Label text="Type of Business" required="true" />
+                                        <ComboBox id="typeOfBusiness" selectedKey="">
+                                            <core:Item key="" text="" />
+                                        </ComboBox>
+                                    </form:content>
+                                </form:SimpleForm>
+                            </layout:BlockLayoutCell>
+                        </layout:BlockLayoutRow>
+
+                        <layout:BlockLayoutRow>
+                            <layout:BlockLayoutCell>
+                                <form:SimpleForm layout="ColumnLayout" columnsXL="4" columnsL="3" columnsM="2">
+                                    <form:content>
+                                        <core:Title text="Payment Information" />
+                                        <Label text="Payment Terms" required="true" />
+                                        <!-- <macros:Field id="pymtTerms" metaPath="PaymentTerms" readOnly="false"></macros:Field> -->
+
+                                        <Input id="pymtTerms" placeholder="Choose Payment Term" showSuggestion="true" showValueHelp="true" value="{wizardModel>/DisplayPaymentTerms}" valueHelpRequest=".onPymnttrmValueHelpRequest" suggestionRows="{/PaymentTerm_VH}" suggestionItemSelected=".onPymnttrmSuggestionSelect">
+                                            <suggestionColumns>
+                                                <Column hAlign="Begin" popinDisplay="Inline" demandPopin="true">
+                                                    <Label text="Payment Term" />
+                                                </Column>
+                                                <Column hAlign="Begin" popinDisplay="Inline" demandPopin="true">
+                                                    <Label text="Day Limit" />
+                                                </Column>
+                                                <Column hAlign="Begin" popinDisplay="Inline" demandPopin="true">
+                                                    <Label text="Payment Term Description" />
+                                                </Column>
+                                            </suggestionColumns>
+                                            <suggestionRows>
+                                                <ColumnListItem>
+                                                    <cells>
+                                                        <Label text="{PaymentTerm}" />
+                                                        <Label text="{DayLimit}" />
+                                                        <Label text="{PaymentTermDesc}" />
+                                                    </cells>
+                                                </ColumnListItem>
+                                            </suggestionRows>
+                                        </Input>
+
+                                        <Label text="Payment Method" required="true" />
+                                        <macros:Field id="pymtMthdm" value="{wizardModel>/GeneralViewData/PaymentMethod}" metaPath="PaymentMethod" readOnly="false">
+                                            <!-- <macros:formatOptions displayMode="ValueDescription" /> -->
+                                            <macros:layoutData>
+                                                <form:ColumnElementData cellsSmall="12" cellsLarge="12" />
+                                            </macros:layoutData>
+                                        </macros:Field>
+                                        <!-- <macros:Field id="pymtMthdm" metaPath="PaymentMethod" value="{wizardModel>/GeneralViewData/PaymentMethod}" readOnly="false" change="onPymntMthd">
+                                        </macros:Field> -->
+                                        <!-- <ComboBox id="pymtMthd" visible="false" selectedKey="{wizardModel>/GeneralViewData/PaymentMethod}" items="{
+                                                path: '/PaymentMethod_VH',
+                                                sorter: { path: 'PaymentMethod'},
+                                                length: 500
+                                            }" loadItems="loadLanguages">
+                                            <core:Item key="{PaymentMethod}" text="{PaymentMethodDesc} ({PaymentMethod})"/>
+                                            <customData>
+                                                <core:CustomData key="filterProp" value="Country" />
+                                            </customData>
+                                        </ComboBox> -->
+
+                                        <!-- <macros:Field id="pymtMthd" metaPath="PaymentMethod" readOnly="false"></macros:Field> -->
+                                    </form:content>
+                                </form:SimpleForm>
+                            </layout:BlockLayoutCell>
+                        </layout:BlockLayoutRow>
+                    </layout:BlockLayout>
+                </WizardStep>
+
+                <WizardStep id="Step2" validated="true" title="{i18n>txt_step2TaxTitle}" activate="additionalInfoValidation">
+                    <layout:BlockLayout background="Default" class="sapUiNoMargin">
+                        <layout:BlockLayoutRow class="sapUiNoMargin">
+                            <layout:BlockLayoutCell>
+                                <MessageStrip text="{i18n>txt_infoText}" type="Information" showIcon="true" />
+                                <VBox>
+                                    <CheckBox id="taxCheckbox" text="{i18n>txt_withHoldCheckBox}" selected="false" select="onWithHoldCheckBoxPress" class="sapUiSmallMarginTop" />
+                                    <!-- <Text id="withHoldTxt" text="Upload your with holding certificate here!" class="sapUiSmallMarginTop" visible="false"/> -->
+                                    <Button id="withHoldingButton" text="Upload your with holding certificate here!" visible="false" press="onWTaxCertificateUpload" />
+                                    <HBox class="sapUiSmallMargin">
+                                        <!-- Radio Buttons -->
+                                        <VBox class="sapUiSmallMargin">
+                                            <Label text="{i18n>txt_selection}" labelFor="GroupTaxident" />
+                                            <RadioButtonGroup id="GroupTaxident" selectedIndex="{wizardModel>/GeneralViewData/RbgSelectedTaxIdOption}" select="onTaxIdSelectionChange" >
+                                                <RadioButton text="{i18n>SSN}" />
+                                                <RadioButton text="{i18n>EIN}" />
+                                                <RadioButton text="{i18n>NPT}" />
+                                            </RadioButtonGroup>
+                                        </VBox>
+
+                                        <!-- Input Fields -->
+                                        <VBox class="sapUiSmallMarginBegin">
+                                            <Label id="lSSN" text="{i18n>SSN}" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 0 }" />
+                                            <Input id="iSSN" value="{wizardModel>/GeneralViewData/Ssn}" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 0 }" />
+
+                                            <Label id="lEIN" text="{i18n>EIN}" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 1 }" />
+                                            <Input id="iEIN" value="{wizardModel>/GeneralViewData/EmployeeIdentificationNumber}" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 1 }" />
+                                        </VBox>
+                                    </HBox>
+                                </VBox>
+                                <!-- <core:ComponentContainer id="Tax_fileUploader" name="combmlgzp2preuseattachment" async="true" manifest="true" height="60%" componentCreated="onReuseComponentCreated" visible="false"/>  -->
+                            </layout:BlockLayoutCell>
+                        </layout:BlockLayoutRow>
+
+                        <layout:BlockLayoutRow>
+                            <layout:BlockLayoutCell width="1" visible="{= ${wizardModel>/VisibleEnableFlag/taxCategoryTableEnabled}}">
+                                <Label text="{i18n>txt_taxIdentification}" visible="false" />
+
+                                <Table id="taxTable" items="{wizardModel>/CountryTaxCategories}" mode="SingleSelectLeft" selectionChange="onTaxCategorySelect" visible="false" class="sapUISmallMarginTop">
+                                    <columns>
+                                        <Column>
+                                            <Text text="Tax Category" />
+                                        </Column>
+                                        <Column>
+                                            <Text text="Description" />
+                                        </Column>
+                                        <Column visible="{wizardModel>showInput}">
+                                            <Text text="Enter Number" />
+                                        </Column>
+                                    </columns>
+
+                                    <items>
+                                        <ColumnListItem>
+                                            <cells>
+                                                <Text text="{wizardModel>TaxType}" />
+                                                <Text text="{wizardModel>Text}" />
+                                                <Input value="{wizardModel>/_BusPartnerTAX/TaxNumber}" visible="{wizardModel>showInput}" />
+                                            </cells>
+                                        </ColumnListItem>
+                                    </items>
+                                </Table>
+                            </layout:BlockLayoutCell>
+
+                            <layout:BlockLayoutCell visible="{= ${wizardModel>/VisibleEnableFlag/taxCategoryDraft}}" width="1">
+                                <VBox>
+                                    <Label id="labelInForm" displayOnly="true" wrapping="true" text="Tax Details : {wizardModel>/_BusPartnerTAX/TaxNumberCategory}" />
+                                    <Input value="{wizardModel>/_BusPartnerTAX/TaxNumber}" />
+                                </VBox>
+                            </layout:BlockLayoutCell>
+
+                            <layout:BlockLayoutCell width="1">
+                                <!-- <Label text="Upload Tax Form" class="sapUiSmallMarginBottom"></Label> -->
+                                <Button id="TaxUploadBtn" text="Upload Tax Form" visible="true" press="onTaxRelatedFormUpload" />
+                                <!-- <core:ComponentContainer id="resuseTaxAttachmentsUI" name="combmlgzp2preuseattachment" async="true" manifest="true" height="70%" componentCreated="onTaxReuseComponentCreated"/> -->
+                            </layout:BlockLayoutCell>
+                        </layout:BlockLayoutRow>
+                    </layout:BlockLayout>
+                </WizardStep>
+
+                <WizardStep id="Step3" validated="false" title="{i18n>txt_step3BankDetails}">
+                    <Table id="tBankInfo" items="{ path: 'wizardModel>/BankDetails'}">
+                        <headerToolbar>
+                            <OverflowToolbar>
+                                <Title text="Bank Details" />
+                                <ToolbarSpacer />
+                                <Button text="Add New Bank Details" icon="sap-icon://add" iconFirst="true" press="onNewBankAdd" type="Emphasized" />
+                            </OverflowToolbar>
+                        </headerToolbar>
+
+                        <columns>
+                            <Column>
+                                <Text text="Bank Country" />
+                            </Column>
+                            <Column>
+                                <Text text="Bank Key" />
+                            </Column>
+                            <Column>
+                                <Text text="Bank Number" />
+                            </Column>
+                            <Column>
+                                <Text text="Account Holder Name" />
+                            </Column>
+                            <Column>
+                                <Text text="Account Number" />
+                            </Column>
+                            <Column>
+                                <Text text="IBAN" />
+                            </Column>
+                            <Column>
+                                <Text text="Swift" />
+                            </Column>
+                            <Column width="110px">
+                                <Text text="Account Type" />
+                            </Column>
+                            <Column width="50px">
+                                <Text text="" />
+                            </Column>
+                        </columns>
+                        <ColumnListItem>
+                            <cells>
+                                
+                                <Text text="{wizardModel>Country}" />
+                                <Text text="{wizardModel>Bankkey}" />
+                                <Text text="{wizardModel>BankNumber}" />
+                                <Text text="{wizardModel>Accountholder}" />
+                                <Text text="{wizardModel>Bankaccount}" />
+                                <Text text="{wizardModel>Iban}" />
+                                <Text text="{wizardModel>SWIFT}" />
+                                <Text text="{wizardModel>Accounttype}" />
+                                <Button icon="sap-icon://attachment" tooltip="Attachments" press="onCheckUploadedBankForm" />
+                            </cells>
+                        </ColumnListItem>
+                    </Table>
+
+                    <form:SimpleForm>
+                        <VBox>
+                            <!-- <Label text="Upload Bank Authorization Letter" class="sapUiSmallMarginBottom"></Label>
+                            <Button id="BankUploadBtn" text="Upload" visible="true" press="onBankRelatedFormUpload"/> -->
+                            <!-- <core:ComponentContainer id="resuseBankAttachmentsUI" name="combmlgzp2preuseattachment" async="true" manifest="true" height="70%" componentCreated="onBankReuseComponentCreated"/> -->
+                        </VBox>
+                    </form:SimpleForm>
+                </WizardStep>
+
+                <WizardStep id="ReviewPage" validated="true" title="Review and Declaration">
+                    <Panel expandable="true" headerText="Supplier User Details" width="auto" class="sapUiResponsiveMargin" stickyHeader="true" backgroundDesign="Solid">
+                        <headerToolbar>
+                            <OverflowToolbar>
+                                <Title text="Supplier User Details" />
+                                <ToolbarSpacer />
+                                <Button text="Edit" icon="sap-icon://edit" press="editStepOne" type="Emphasized" />
+                            </OverflowToolbar>
+                        </headerToolbar>
+                        <layout:BlockLayout background="Dashboard" class="sapUiNoMargin">
+                            <layout:BlockLayoutRow class="sapUiNoMargin">
+                                <layout:BlockLayoutCell width="1" class="sapUiNoMargin">
+                                    <VBox class="sapUiNoMargin">
+                                        <form:SimpleForm layout="ColumnLayout" editable="false" title="{i18n>txt_usrDetails}" columnsXL="4" columnsL="3" columnsM="2">
+                                            <form:content>
+                                                <Label text="Supplier Country" />
+                                                <Text text="{wizardModel>/DisplayCountry}" />
+                                                <Label text="Time Zone" />
+                                                <Text text="{wizardModel>/GeneralViewData/CustTimezone}" />
+                                                <Label text="Supplier Contact Person" />
+                                                <Text text="{wizardModel>/GeneralViewData/Customername}" />
+                                                <Label text="Supplier Contact Person's Email ID" />
+                                                <Text text="{wizardModel>/GeneralViewData/Email}" />
+                                                <Label text="Mobile Number 1" />
+                                                <!-- <Text text="{wizardModel>/GeneralViewData/Phonecode}"/> -->
+                                              <Text text="{= '+(' + ${wizardModel>/_AddressNum/TeleCode} + ') ' + ${wizardModel>/_AddressNum/Telephone} }" />
+
+                                                <Label text="Mobile Number 2" />
+                                                <!-- <Text text="{wizardModel>/GeneralViewData/Phonecode2}">
+                                                    <layoutData>
+                                                        <form:ColumnElementData cellsSmall="3" cellsLarge="2"></form:ColumnElementData>
+                                                    </layoutData>
+                                                </Text> -->
+                                                <Text text="+({wizardModel>/_AddressNum/TeleCode2}) {wizardModel>/_AddressNum/Telephone2}" />
+
+                                                <Label text="Currency" />
+                                                <Text text="{wizardModel>/GeneralViewData/CurrencyKey}" />
+                                                <Label text="Hybe Contact Person" />
+                                                <Text text="{wizardModel>/GeneralViewData/HybeContactPerson}" />
+                                            </form:content>
+                                        </form:SimpleForm>
+                                    </VBox>
+                                </layout:BlockLayoutCell>
+                            </layout:BlockLayoutRow>
+
+                            <layout:BlockLayoutRow class="sapUiNoMargin">
+                                <layout:BlockLayoutCell width="1" class="sapUiNoMargin">
+                                    <VBox class="sapUiNoMargin">
+                                        <form:SimpleForm layout="ColumnLayout" editable="false" title="Legal Address Details" columnsXL="4" columnsL="3" columnsM="2">
+                                            <form:content>
+                                                <Label text="Company 1" />
+                                                <Text text="{wizardModel>/GeneralViewData/Companyname1}" />
+                                                <Label text="Company 2" />
+                                                <Text text="{wizardModel>/GeneralViewData/Companyname2}" />
+                                                <Label text="Address Line 1" />
+                                                <Text text="{wizardModel>/_AddressNum/Name}" />
+                                                <Label text="Address Line 2" />
+                                                <Text text="{wizardModel>/_AddressNum/Name2}" />
+                                                <Label text="City" />
+                                                <Text text="{wizardModel>/_AddressNum/City}" />
+                                                <Label text="State" />
+                                                <Text text="{wizardModel>/_AddressNum/Region}" />
+                                                <Label text="Zip Code" />
+                                                <Text text="{wizardModel>/_AddressNum/PostalCode}" />
+                                                <Label text="Preferred Language" />
+                                                <Text text="{wizardModel>/GeneralViewData/Preferedlang}" />
+                                            </form:content>
+                                        </form:SimpleForm>
+                                    </VBox>
+                                </layout:BlockLayoutCell>
+                            </layout:BlockLayoutRow>
+
+                            <layout:BlockLayoutRow class="sapUiNoMargin">
+                                <layout:BlockLayoutCell class="sapUiNoMargin">
+                                    <form:SimpleForm layout="ColumnLayout" title="Payment Information" columnsXL="4" columnsL="3" columnsM="2">
+                                        <form:content>
+                                            <Label text="Payment Terms" />
+                                            <Text text="{wizardModel>/DisplayPaymentTerms}" />
+
+                                            <Label text="Payment Method" />
+                                            <Text text="{wizardModel>/GeneralViewData/PaymentMethod}" />
+                                        </form:content>
+                                    </form:SimpleForm>
+                                </layout:BlockLayoutCell>
+                            </layout:BlockLayoutRow>
+                        </layout:BlockLayout>
+                    </Panel>
+
+                    <Panel expandable="true" headerText="Tax Identification Details" width="auto" class="sapUiResponsiveMargin" stickyHeader="true" backgroundDesign="Solid">
+                        <headerToolbar>
+                            <OverflowToolbar>
+                                <Title text="Tax Identification Details" />
+                                <ToolbarSpacer />
+                                <Button text="Edit" icon="sap-icon://edit" press="editStepTwo" type="Emphasized" />
+                            </OverflowToolbar>
+                        </headerToolbar>
+                        <layout:BlockLayout background="Dashboard">
+                            <layout:BlockLayoutRow>
+                                <layout:BlockLayoutCell>
+                                    <VBox>
+                                        <form:SimpleForm layout="ResponsiveGridLayout" editable="false">
+                                            <form:content>
+                                                <HBox class="sapUiSmallMargin">
+                                                    <Label id="TaxNumber" displayOnly="true" wrapping="true" text="Tax Details  {wizardModel>/_BusPartnerTAX/TaxNumberCategory}" />
+                                                    <Text text="{wizardModel>/_BusPartnerTAX/TaxNumber}" />
+
+                                                    <!-- Radio Buttons -->
+                                                    <VBox class="sapUiSmallMargin">
+                                                        <Label text="{i18n>txt_selection}" labelFor="GroupTaxident" />
+                                                        <RadioButtonGroup id="GroupTaxident1" select="onTaxIdSelectionChange1" selectedIndex="{wizardModel>/GeneralViewData/RbgSelectedTaxIdOption}" enabled="false">
+                                                            <RadioButton text="{i18n>SSN}" />
+                                                            <RadioButton text="{i18n>EIN}" />
+                                                            <RadioButton text="{i18n>NPT}" />
+                                                        </RadioButtonGroup>
+                                                    </VBox>
+
+                                                    <!-- Input Fields -->
+                                                    <VBox class="sapUiSmallMarginBegin">
+                                                        <Label id="lSSN1" text="{i18n>SSN}" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 0 }" />
+                                                        <Input id="iSSN1" value="{wizardModel>/GeneralViewData/Ssn}" editable="false" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 0 }" />
+
+                                                        <Label id="lEIN1" text="{i18n>EIN}" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 1 }" />
+                                                        <Input id="iEIN1" value="{wizardModel>/GeneralViewData/EmployeeIdentificationNumber}" editable="false" visible="{= ${wizardModel>/GeneralViewData/RbgSelectedTaxIdOption} === 1 }" />
+                                                    </VBox>
+                                                </HBox>
+
+                                                <!-- <Label text="Social Security Number (SSN)"/>
+                                                <Text text="{wizardModel>/GeneralViewData/Ssn}"/>
+                                                <Label text="VAT Number"/>
+                                                <Text text="{wizardModel>/GeneralViewData/Taxnumber}"/>
+                                                <Label text="Employee Identification Number (EIN)"/>
+                                                <Text text="{wizardModel>/GeneralViewData/EmployeeIdentificationNumber}"/>
+                                                <Label text="Tax Identification Number"></Label>
+                                                <Text text=""/>
+                                                <Label text="GST Identification Number"></Label>
+                                                <Text text=""/>
+                                                <Label text="Corporate ID or Personal"></Label>
+                                                <Text text=""/>
+                                                <Label text="Tax Registration Number"></Label>
+                                                <Text text=""/>
+                                                <Label text="I choose not to provide tax data"/>
+                                                <Text text="{wizardModel>/GeneralViewData/ProvideTaxData}"/> -->
+                                            </form:content>
+                                        </form:SimpleForm>
+                                    </VBox>
+                                </layout:BlockLayoutCell>
+                            </layout:BlockLayoutRow>
+                        </layout:BlockLayout>
+                    </Panel>
+
+                    <Panel expandable="true" headerText="Banking Details" width="auto" class="sapUiResponsiveMargin" stickyHeader="true" backgroundDesign="Solid">
+                        <headerToolbar>
+                            <OverflowToolbar>
+                                <Title text="Banking Details" />
+                                <ToolbarSpacer />
+                                <Button text="Edit" icon="sap-icon://edit" press="editStepThree" type="Emphasized" />
+                            </OverflowToolbar>
+                        </headerToolbar>
+                        <layout:BlockLayout>
+                            <layout:BlockLayoutRow>
+                                <layout:BlockLayoutCell width="1">
+                                    <Table items="{ path: 'wizardModel>/BankDetails'}">
+                                        <headerToolbar>
+                                            <OverflowToolbar>
+                                                <Title text="Bank Details" />
+                                            </OverflowToolbar>
+                                        </headerToolbar>
+
+                                        <columns>
+                                            <Column>
+                                                <Text text="Bank Country" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="Bank Key" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="Bank Number" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="Account Holder Name" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="Account Number" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="IBAN" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="Swift" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="Account Type" />
+                                            </Column>
+                                        </columns>
+                                        <ColumnListItem>
+                                            <cells>
+                                                <Text text="{wizardModel>Country}" />
+                                                <Text text="{wizardModel>Bankkey}" />
+                                                <Text text="{wizardModel>BankNumber}" />
+                                                <Text text="{wizardModel>Accountholder}" />
+                                                <Text text="{wizardModel>Bankaccount}" />
+                                                <Text text="{wizardModel>Iban}" />
+                                                <Text text="{wizardModel>SWIFT}" />
+                                                <Text text="{wizardModel>Accounttype}" />
+                                            </cells>
+                                        </ColumnListItem>
+                                    </Table>
+                                </layout:BlockLayoutCell>
+                            </layout:BlockLayoutRow>
+                        </layout:BlockLayout>
+                    </Panel>
+
+                    <layout:BlockLayout>
+                        <layout:BlockLayoutRow>
+                            <layout:BlockLayoutCell width="0">
+                                <VBox class="sapUiSmallMargin">
+                                    <Label text="Declaration :" />
+                                    <CheckBox text="{i18n>txt_step4TermsAndcondition}" select="onDeclarationSelected" wrapping="true" />
+                                </VBox>
+                            </layout:BlockLayoutCell>
+                        </layout:BlockLayoutRow>
+                    </layout:BlockLayout>
+                </WizardStep>
+            </Wizard>
+        </f:content>
+        <f:footer>
+            <OverflowToolbar>
+                <Button text="Previous Step" icon="sap-icon://nav-back" visible="{wizardModel>/VisibleEnableFlag/backButtonVisible}" press="onPreviousBackButton" tooltip="Previous step" />
+                <ToolbarSpacer />
+                <Button text="Save as Draft" visible="true" press="handleWizardDraftSubmit" tooltip="Save as Draft" />
+                <Button text="Next Step" icon="sap-icon://navigation-right-arrow" type="Emphasized" visible="{wizardModel>/VisibleEnableFlag/nextButtonVisible}" enabled="true" press="onNextButtonPress" tooltip="Next Step" />
+                <Button text="Submit" type="Emphasized" visible="{wizardModel>/VisibleEnableFlag/submitButtonVisible}" press="handleWizardSubmit" tooltip="Submit" />
+            </OverflowToolbar>
+        </f:footer>
+    </f:DynamicPage>
+</mvc:View>

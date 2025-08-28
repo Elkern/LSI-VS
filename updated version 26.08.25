@@ -1,0 +1,2160 @@
+sap.ui.define(
+    [
+        'sap/fe/core/PageController',
+        "sap/m/MessageBox",
+        "sap/ui/model/json/JSONModel",
+        "sap/ui/model/Filter",
+        "sap/ui/model/FilterOperator",
+        "sap/ui/core/Fragment",
+        "sap/m/MessageToast"
+    ],
+    function (PageController, MessageBox, JSONModel, Filter, FilterOperator, Fragment, MessageToast) {
+        'use strict';
+
+        return PageController.extend('zbmlgp2psupreg02.project1.ext.main.Main', {
+            /**
+             * Called when a controller is instantiated and its View controls (if available) are already created.
+             * Can be used to modify the View before it is displayed, to bind event handlers and do other one-time initialization.
+             * @memberOf com.bmlg.zp2psupreg.ext.main.Main
+             */
+            onInit: function () {
+                sap.ui.core.BusyIndicator.show(0);
+                PageController.prototype.onInit.apply(this, arguments); // needs to be called to properly initialize the page controller
+                this.oWizardModel = new JSONModel({});
+                this.getView().setModel(this.oWizardModel, "wizardModel");
+                setTimeout(() => {
+                    sap.ui.core.BusyIndicator.hide();
+                }, 2500);
+                this._wizard = this.byId("supRegWizard");
+                this._oDynamicPage = this.getView().byId("supRegPage");
+                this.fSupExistorNot = false;    //true --> its already saved in draft     //false --> its a new entry
+                this.fDraftORFinal = false;     //true --> its a draft btn call           //false --> its a final btn call
+                this.fTaxDraftExistOrNot = false;
+                this.dmsFolderCreationFlag = 0;
+                this._iSelectedStepIndex = 0;
+                // debugger;
+                this._oSelectedStep = this._wizard.getSteps()[this._iSelectedStepIndex];
+                this.oRouter = this.getAppComponent().getRouter();
+                this.oRouter.getRoute("GeneralViewMain02").attachPatternMatched(this._onObjectMatched, this);
+
+
+            },
+
+            // onAfterRendering: function () {
+            //     var oView = this.getView();
+            //     var oModel = oView.getModel("wizardModel");
+            //     var selectedIndex = oModel.getProperty("/GeneralViewData/SelectedTaxTypeIndex");
+
+            //     // Fallback to default if not defined
+            //     if (selectedIndex === undefined || selectedIndex === null) {
+            //         selectedIndex = 0;
+            //         oModel.setProperty("/GeneralViewData/SelectedTaxTypeIndex", 0);
+            //     }
+
+            //     // Set selected index to ensure UI matches model
+            //     oView.byId("GroupTaxident").setSelectedIndex(selectedIndex);
+
+            //     // Manually update visibility
+            //     this._updateTaxIdInputVisibility(selectedIndex);
+            // },
+            // _updateTaxIdInputVisibility : function(){
+            //   var selectedIndex = this.getView().getModel("wizardModel").getProperty("/GeneralViewData/SelectedTaxTypeIndex");
+
+            //     // Set visibility accordingly
+            //     this.getView().byId("iSSN").setVisible(selectedIndex === 0);
+            //     this.getView().byId("lSSN").setVisible(selectedIndex === 0);
+
+            //     this.getView().byId("iEIN").setVisible(selectedIndex === 1);
+            //     this.getView().byId("lEIN").setVisible(selectedIndex === 1);
+            // },
+
+
+            /**
+             * Similar to onAfterRendering, but this hook is invoked before the controller's View is re-rendered
+             * (NOT before the first rendering! onInit() is used for that one!).
+             * @memberOf com.bmlg.zp2psupreg.ext.main.Main
+             */
+            _onObjectMatched: function (oEvent) {
+                // this.oCustomerNumber = this.getOwnerComponent().getComponentData().startupParameters.Suppliernumber[0];
+                this.oModel = this.getOwnerComponent().getModel();
+                this.i18n = this.getOwnerComponent().getModel("i18n").getResourceBundle();
+                this._handleButtonsVisibility();
+
+
+
+                // var oUserInfo = this._getUserInfo();
+
+                // if (oUserInfo) {
+                //     var sUserId = oUserInfo.getId(); // Usually email or login ID
+                //     var sFullName = oUserInfo.getFullName(); // "First Last"
+                //     var sEmail = oUserInfo.getEmail(); // Sometimes available
+                //     var sLanguage = oUserInfo.getLanguage();
+
+                //     console.log("User ID:", sUserId);
+                //     console.log("Name:", sFullName);
+                //     console.log("Email:", sEmail);
+                //     console.log("Language:", sLanguage);
+                // } else {
+                //     console.warn("User info not available — app is not running inside FLP.");
+                // }
+
+
+
+
+
+                // Only fetch these navigation properties initially
+                this._initChildEntities()
+                    .then((oJsonData) => {
+                        console.log("Data successfully fetched and model updated:", oJsonData);
+                        this.oTempEmail = "test2@gmail.com";
+
+
+                        // this.getRandomEmailForDomain("gmail.com");
+                        this.checkDraftSupplierExist(this.oTempEmail)
+                            .then(response => {
+                                if (response.existSupflag) //true --> its already saved in draft
+                                {
+                                    console.log(response);
+                                    this.tempSupNumber = response.tempSupNo;
+                                    if (response.DMSFolderFlg === '') {
+                                        this.onFolderCreation(response.tempSupNo);
+                                    }
+                                    else {
+                                        this.dmsFolderCreationFlag = 1;
+                                    }
+                                }
+                                else //false --> its a new entry
+                                {
+                                    console.log(response);
+                                    this.onFolderCreation(response.tempSupNo);
+                                }
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    })
+                    .catch((error) => {
+                        // Failure - Handle the error here
+                        console.error("Failed to fetch child entities:", error);
+                    });
+
+
+                const oListBindingPymt = this.oModel.bindList("/PaymentMethod_VH", undefined, undefined, [
+                    new Filter("Country", FilterOperator.EQ, 'US')
+                ]);
+
+
+
+
+                oListBindingPymt.requestContexts(0, 1).then((aContext) => {
+                    if (aContext.length) {
+                        const oDatapm = aContext[0].getObject();
+                        var oArgumentpm = "PaymentMethod=" + oDatapm.PaymentMethod;
+                        var sPathpy = "/PaymentMethod_VH(" + oArgumentpm + ")";
+                        this.getView().byId("pymtMthdm").bindContext(
+                            sPathpy,
+                            null,  //oContext
+                        );
+                    }
+                }).catch((error) => {
+                    console.error("Failed to load currency:", error);
+                });
+
+                // this.FnvHPmethod();
+
+                // for currency macros
+                const oListBindingCu = this.oModel.bindList("/Currency_VH", undefined, undefined, [
+
+                ]);
+
+                oListBindingCu.requestContexts(0, 1).then((aContexts) => {
+                    if (aContexts.length) {
+                        const oData = aContexts[0].getObject();
+                        var oArgumentsC = "Currency=" + oData.Currency;
+                        var sPathC = "/Currency_VH(" + oArgumentsC + ")";
+                        this.getView().byId("Currencym").bindContext(
+                            sPathC,
+                            null,  //oContext
+                        );
+                    }
+                }).catch((error) => {
+                    console.error("Failed to load currency:", error);
+                });
+
+                // for timezone macros
+                const oListBindingTz = this.oModel.bindList("/TimeZone_VH", undefined, undefined, [
+
+                ]);
+
+                oListBindingTz.requestContexts(0, 1).then((aContexts) => {
+                    if (aContexts.length) {
+                        const oData = aContexts[0].getObject();
+                        var oArgumentsT = "TimeZoneCode=" + oData.TimeZoneCode;
+                        var sPathT = "/TimeZone_VH(" + oArgumentsT + ")";
+                        this.getView().byId("timezonem").bindContext(
+                            sPathT,
+                            null,  //oContext
+                        );
+                    }
+                }).catch((error) => {
+                    console.error("Failed to load currency:", error);
+                });
+
+
+
+                // for macros vh
+                // const oListBinding = this.oModel.bindList("/PaymentMethod_VH", undefined, undefined, [
+
+                // ]);
+
+
+
+                // // for state macros
+                const oListBindingSt = this.oModel.bindList("/State_VH", undefined, undefined, [
+
+                ]);
+
+                oListBindingSt.requestContexts(0, 1).then((aContexts) => {
+                    if (aContexts.length) {
+                        const oData = aContexts[0].getObject();
+                        var oArgumentsSt = "RegionCode=" + oData.RegionCode;
+                        var sPathSt = "/State_VH(" + oArgumentsSt + ")";
+                        this.getView().byId("statem").bindContext(
+                            sPathSt,
+                            null,  //oContext
+                        );
+                    }
+                }).catch((error) => {
+                    console.error("Failed to load currency:", error);
+                });
+
+                // for lang macros
+                const oListBindingLg = this.oModel.bindList("/Language", undefined, undefined, [
+
+                ]);
+
+                oListBindingLg.requestContexts(0, 1).then((aContexts) => {
+                    if (aContexts.length) {
+                        const oData = aContexts[0].getObject();
+                        var oArgumentsLa = "LanguageCode=" + oData.LanguageCode;
+                        var sPathLa = "/Language(" + oArgumentsLa + ")";
+                        this.getView().byId("prefLangm").bindContext(
+                            sPathLa,
+                            null,  //oContext
+                        );
+                    }
+                }).catch((error) => {
+                    console.error("Failed to load currency:", error);
+                });
+
+
+                // debugger;
+                // var oODataModel = this.getView().getModel();
+                // var oModel = this.getView().getModel();
+                // var oListBinding = oODataModel.bindList("/PaymentMethod_VH");
+                // var oContext = oListBinding.create();
+
+
+                // oContext.created()
+                //    .then(function () {
+                //     debugger;
+                //     var oData = oContext.getObject();
+                //     var oArguments = "PaymentMethod=" + oData.PaymentMethod + ",IsActiveEntity=false";
+                //     var sPath = "/PaymentMethod_VH(" + oArguments + ")";
+                //     this.getView().byId("supRegPage").bindContext(
+                //     sPath,
+                //     null,  //oContext
+                // );
+                // this.oMainModel = new JSONModel(oData);
+                // this.getView().setModel(this.oMainModel, "oMainModel");
+
+                // }.bind(this))
+                //     .catch((err) => { });
+
+
+
+
+            },
+
+            _getUserInfo: function () {
+                if (sap.ushell && sap.ushell.Container && sap.ushell.Container.getUser) {
+                    return sap.ushell.Container.getUser();
+                }
+                return null;
+            },
+
+            _handleButtonsVisibility: function () {
+                switch (this._iSelectedStepIndex) {
+                    case 0:
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/nextButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/draftButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/backButtonVisible", false);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/submitButtonVisible", false);
+                        break;
+                    case 1:
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/backButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/nextButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/draftButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/submitButtonVisible", false);
+                        break;
+                    case 2:
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/nextButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/backButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/submitButtonVisible", false);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/draftButtonVisible", true);
+                        break;
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/submitButtonVisible", false);
+                    case 3:
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/draftButtonVisible", false);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/nextButtonVisible", false);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/backButtonVisible", true);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/submitButtonVisible", true);
+                        break;
+                    default: break;
+                }
+
+            },
+
+            //added by AKG
+            onTaxIdSelectionChange: function (oEvent) {
+
+                var oSelectedIndex = oEvent.getSource().getSelectedIndex();
+
+                this.oWizardModel.setProperty("/selectedTaxIdOption", oSelectedIndex);
+
+
+                // Get control references
+                var oSSNLabel = this.byId("lSSN");
+                var oSSNInput = this.byId("iSSN");
+                var oEINLabel = this.byId("lEIN");
+                var oEINInput = this.byId("iEIN");
+
+
+                if (oSelectedIndex === 0) { // SSN selected
+                    oSSNLabel.setVisible(true);
+                    oSSNInput.setVisible(true);
+                    oEINLabel.setVisible(false);
+                    oEINInput.setVisible(false);
+                } else if (oSelectedIndex === 1) { // EIN selected
+                    oSSNLabel.setVisible(false);
+                    oSSNInput.setVisible(false);
+                    oEINLabel.setVisible(true);
+                    oEINInput.setVisible(true);
+                } else { // NPT selected
+                    oSSNLabel.setVisible(false);
+                    oSSNInput.setVisible(false);
+                    oEINLabel.setVisible(false);
+                    oEINInput.setVisible(false);
+                }
+                this.updateReviewTaxInputs(oEvent);
+            },
+
+            updateReviewTaxInputs: function () {
+                var iSelectedIndex = this.oWizardModel.getProperty("/selectedTaxIdOption");
+
+                // Controls for Step 4
+                var oSSNLabel = this.byId("lSSN1");
+                var oSSNInput = this.byId("iSSN1");
+                var oEINLabel = this.byId("lEIN1");
+                var oEINInput = this.byId("iEIN1");
+
+                if (iSelectedIndex === 0) {
+                    oSSNLabel.setVisible(true);
+                    oSSNInput.setVisible(true);
+                    oEINLabel.setVisible(false);
+                    oEINInput.setVisible(false);
+                } else if (iSelectedIndex === 1) {
+                    oSSNLabel.setVisible(false);
+                    oSSNInput.setVisible(false);
+                    oEINLabel.setVisible(true);
+                    oEINInput.setVisible(true);
+                } else {
+                    oSSNLabel.setVisible(false);
+                    oSSNInput.setVisible(false);
+                    oEINLabel.setVisible(false);
+                    oEINInput.setVisible(false);
+                }
+            },
+
+
+
+
+
+            _initChildEntities: function () {
+                return new Promise(async (resolve, reject) => {
+                    try {
+                        const oMetaModel = this.oModel.getMetaModel();
+                        const sEntityTypePath = "/com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.GeneralViewType";
+
+                        const oMainEntity = await oMetaModel.requestObject(sEntityTypePath);
+                        const oJsonData = {}; // Start with empty object
+
+                        const fieldsToRemove = [
+                            "BankInfoUUID",
+                            "BPTaxUUID",
+                            "Addressnumuuid",
+                            "WithHoldTaxUUID",
+                            "CreatedBy",
+                            "CreatedAt",
+                            "LastChangedBy",
+                            "LastChangedAt",
+                            "LocalLastChangedAt",
+                            "HasDraftEntity",
+                            "DraftEntityCreationDateTime",
+                            "DraftEntityLastChangeDateTime",
+                            "HasActiveEntity",
+                            "__EntityControl",
+                            "SAP__Messages"
+                        ];
+
+                        const aChildEntities = ["_BankInformation", "_AddressNum", "_BusPartnerTAX", "_WithHoldingTAX"];
+
+                        for (const sNavProp of aChildEntities) {
+                            const oNav = oMainEntity[sNavProp];
+                            if (!oNav || oNav.$kind !== "NavigationProperty") continue;
+
+                            const sTargetEntityTypePath = "/" + oNav.$Type;
+                            const oTargetEntity = await oMetaModel.requestObject(sTargetEntityTypePath);
+
+                            const oChildStructure = {};
+
+                            for (const sProp in oTargetEntity) {
+                                const oProp = oTargetEntity[sProp];
+                                if (
+                                    oProp?.$kind === "Property" &&
+                                    !fieldsToRemove.includes(sProp) // Exclude unwanted fields
+                                ) {
+                                    switch (oProp.$Type) {
+                                        case "Edm.String": oChildStructure[sProp] = ""; break;
+                                        case "Edm.Boolean": oChildStructure[sProp] = false; break;
+                                        case "Edm.Int32":
+                                        case "Edm.Int16":
+                                        case "Edm.Decimal": oChildStructure[sProp] = 0; break;
+                                        case "Edm.DateTimeOffset":
+                                        case "Edm.Date": oChildStructure[sProp] = null; break;
+                                        default: oChildStructure[sProp] = "";
+                                    }
+                                }
+                            }
+
+                            oJsonData[sNavProp] = oChildStructure;
+                        }
+
+                        oJsonData["BankDetails"] = [];
+                        oJsonData["NewBankDetail"] = {
+                            Country: "",
+                            Bankkey: "",
+                            BankNumber: "",
+                            Accountholder: "",
+                            Bankaccount: "",
+                            Iban: "",
+                            SWIFT: "",
+                            Accounttype: "",
+                            ApplicantName: ""
+                        };
+
+                        // Add GeneralViewData at the end
+                        oJsonData["GeneralViewData"] = {
+                            Customernumber: "",
+                            Customername: "",
+                            Email: "",
+                            CustTimezone: "",
+                            Preferedlang: "",
+                            Region: "",
+                            Legalentity: "",
+                            Taxnumber: "",
+                            Typeofindustry: "",
+                            Typeofbusiness: "",
+                            Representative: "",
+                            CurrencyKey: "",
+                            Companyname1: "",
+                            Companyname2: "",
+                            Ssn: "",
+                            SupplierType: "",
+                            SupplierTemporaryNumber: "",
+                            HybeContactPerson: "",
+                            EmployeeIdentificationNumber: "",
+                            ProvideTaxData: "",
+                            DMSFolderFlg: "",
+                            TempFolderID: "",
+                            IsActiveEntity: false,
+                        };
+
+                        oJsonData["VisibleEnableFlag"] = {
+                            backButtonVisible: false,
+                            draftButtonVisible: true,
+                            nextButtonVisible: true,
+                            submitButtonVisible: false,
+                            taxCategoryTableEnabled: true,
+                            taxCategoryDraft: false
+                        }
+
+                        oJsonData["CountryTaxCategories"] = [];
+
+                        // Set the model data and print to console
+                        this.oWizardModel.setData(oJsonData);
+
+                        this._initialWizardData = JSON.parse(JSON.stringify(oJsonData));
+
+                        // Resolve the promise after success
+                        resolve(oJsonData);
+                    } catch (error) {
+                        // If any error occurs, reject the promise with an error message
+                        console.error("❌ Error while fetching child entities:", error);
+                        reject(error);
+                    }
+                });
+            },
+
+            checkDraftSupplierExist: function (emailId) {
+
+                // ✅ Apply Filters to find the correct entity
+                var that = this;
+                var aFilters = [
+                    new Filter("Email", FilterOperator.EQ, emailId),
+                    new Filter("IsActiveEntity", FilterOperator.EQ, false)
+                ];
+
+                // ✅ Bind the list with filters
+                var oListBinding = this.oModel.bindList("/GeneralView", undefined, undefined, aFilters, {
+                    "$expand": "_BankInformation,_AddressNum,_BusPartnerTAX,_WithHoldingTAX"
+                });
+                this.oContext = null;
+                return new Promise((resolve, reject) => {
+                    oListBinding.requestContexts(0, 1).then((aContexts) => {
+                        if (!aContexts.length) {
+                            // Get the entire JSON model data
+                            that.fSupExistorNot = false;
+                            that.oWizardModel.setProperty("/GeneralViewData", Object.assign(
+                                {}, // Clone existing data
+                                that.oWizardModel.getProperty("/GeneralViewData"), // Keep existing values
+                                {
+                                    Email: emailId,
+                                }
+                            ));
+
+                            var oWizardData = that.oWizardModel.getData();
+
+                            // Construct Deep Insert Payload (Auto-includes all properties)
+                            var oPayload = Object.assign({}, oWizardData.GeneralViewData, {
+                                 _BankInformation: [oWizardData._BankInformation], // Embedded BankInfo,
+                                _WithHoldingTAX: [oWizardData._WithHoldingTAX],
+                                _BusPartnerTAX: [oWizardData._BusPartnerTAX],
+                                _AddressNum: [oWizardData._AddressNum]
+                            });
+
+                            // Create Deep Insert Entry
+                            var oContextBinding = this.oModel.bindList("/GeneralView");
+                            var oNewContext = oContextBinding.create(oPayload);
+
+                            oNewContext.created()
+                                .then(() => {
+                                    console.log("success");
+                                    var oCreatedData = oNewContext.getObject();
+                                    that.oWizardModel.setProperty("/GeneralViewData", Object.assign(
+                                        {}, // Clone existing data
+                                        that.oWizardModel.getProperty("/GeneralViewData"), // Keep existing values
+                                        {
+                                            Email: oCreatedData.Email,
+                                            Customernumber: oCreatedData.Customernumber,
+                                            SupplierTemporaryNumber: oCreatedData.Customernumber
+                                        }
+                                    ));
+                                    that.getView().setModel(that.oWizardModel, "wizardModel");
+                                    that.oContext = oNewContext;
+                                    // that.FnvHPmethod();
+                                    resolve({
+                                        existSupflag: that.fSupExistorNot,
+                                        tempSupNo: oCreatedData.Customernumber,
+                                        DMSFolderFlg: oCreatedData.DMSFolderFlg
+                                    });
+                                })
+                                .catch((oError) => {
+                                    var sErrorMessage = oError.message || "Creation failed!";
+                                    sap.m.MessageBox.error(sErrorMessage);
+                                    reject("Active Data not found."); // Reject if no data found
+                                    return;
+                                });
+
+                        }
+                        else {
+                            that.fSupExistorNot = true;
+                            that.oContext = aContexts;
+                            var oData = aContexts[0].getObject();
+                            that.oWizardModel.setProperty("/GeneralViewData", {
+                                Customernumber: oData.Customernumber || "",
+                                Customername: oData.Customername || "",
+                                Email: oData.Email || "",
+                                CustTimezone: oData.CustTimezone || "",
+                                Preferedlang: oData.Preferedlang || "",
+                                Region: oData.Region || "",
+                                Legalentity: oData.Legalentity || "",
+                                Taxnumber: oData.Taxnumber || "",
+                                Typeofindustry: oData.Typeofindustry || "",
+                                Typeofbusiness: oData.Typeofbusiness || "",
+                                Representative: oData.Representative || "",
+                                CurrencyKey: oData.CurrencyKey || "",
+                                Companyname1: oData.Companyname1 || "",
+                                Companyname2: oData.Companyname2 || "",
+                                Ssn: oData.Ssn || "",
+                                SupplierType: oData.SupplierType || "",
+                                SupplierTemporaryNumber: oData.SupplierTemporaryNumber || oData.Customernumber,
+                                HybeContactPerson: oData.HybeContactPerson || "",
+                                EmployeeIdentificationNumber: oData.EmployeeIdentificationNumber || "",
+                                ProvideTaxData: oData.ProvideTaxData || "",
+                                DMSFolderFlg: oData.DMSFolderFlg || "",
+                                IsActiveEntity: oData.IsActiveEntity || false,
+                                PaymentTerms: oData.PaymentTerms,
+                                PaymentMethod: oData.PaymentMethod,
+                                Phonecode: oData._AddressNum[0].TeleCode,
+                                Phonecode2: oData._AddressNum[0].TeleCode2
+                                // RbgSelectedTaxIdOption : oData.RbgSelectedTaxIdOption == "" ? "" : parseInt(oData.RbgSelectedTaxIdOption)         //++AKG
+                            });
+                            that.oWizardModel.setProperty("/_BankInformation", oData._BankInformation[0]);
+                            // that.oWizardModel.setProperty("/_BankInformation", oData._BankInformation[0]);
+                            that.oWizardModel.setProperty("/_WithHoldingTAX", oData._WithHoldingTAX[0]);
+                            that.oWizardModel.setProperty("/_AddressNum", oData._AddressNum[0]);
+                            that.oWizardModel.setProperty("/_BusPartnerTAX", oData._BusPartnerTAX[0]);
+                            if (this.oWizardModel.getData()._BusPartnerTAX['TaxNumberCategory'] != null) {
+                                this.oWizardModel.setProperty("/VisibleEnableFlag/taxCategoryTableEnabled", false);
+                                this.fTaxDraftExistOrNot = true;
+                                if (this.oWizardModel.getData()._BusPartnerTAX['TaxNumberCategory'] === "") {
+                                    this.oWizardModel.setProperty("/VisibleEnableFlag/taxCategoryDraft", false);
+                                }
+                                else {
+                                    this.oWizardModel.setProperty("/VisibleEnableFlag/taxCategoryDraft", true);
+                                }
+                            }
+                            that.getView().setModel(that.oWizardModel, "wizardModel");
+                            that._loadinitialValhlp();
+                            // that.FnvHPmethod();
+                            resolve({
+                                existSupflag: that.fSupExistorNot,
+                                tempSupNo: oData.Customernumber,
+                                DMSFolderFlg: oData.DMSFolderFlg
+                            });
+                        }
+                    }).catch((oError) => {
+                        reject("Failed to retrieve supplier data: " + oError.message); // Handle errors
+                    });
+                });
+            },
+
+            // by AKG
+            onNextButtonPress: function () {
+                // var oSupCountryInput = this.getView().byId("supCountry");
+                // var oSupplierContactInput = this.getView().byId("supplierContactPerson");
+                // var oCheckBox = this.byId("taxCheckbox");
+
+                // // Get current step index
+                // this._iSelectedStepIndex = this._wizard.getSteps().indexOf(this._oSelectedStep);
+                var oNextStep = this._wizard.getSteps()[this._iSelectedStepIndex + 1];
+
+                // var bValid = true;
+
+                // // Step 1 Validation
+                // if (this._iSelectedStepIndex === 0) {
+                //     if (!oSupCountryInput.getValue()) {
+                //         oSupCountryInput.setValueState("Error");
+                //         oSupCountryInput.setValueStateText("Supplier Country is required.");
+                //         bValid = false;
+                //     } else {
+                //         oSupCountryInput.setValueState("None");
+                //     }
+
+                //     if (!oSupplierContactInput.getValue()) {
+                //         oSupplierContactInput.setValueState("Error");
+                //         oSupplierContactInput.setValueStateText("Supplier Contact Person is required.");
+                //         bValid = false;
+                //     } else {
+                //         oSupplierContactInput.setValueState("None");
+                //     }
+
+                //     if (!bValid) {
+                //         return;
+                //     }
+                // }
+
+                // // Step 2 Validation
+                // else if (this._iSelectedStepIndex === 1) {
+                //     if (!oCheckBox.getSelected()) {
+                //         oCheckBox.setValueState("Error");
+                //         oCheckBox.setValueStateText("You must agree to the terms.");
+                //         bValid = false;
+                //     } else {
+                //         oCheckBox.setValueState("None");
+                //     }
+
+                //     if (!bValid) {
+                //         return;
+                //     }
+                // }
+
+                // Move to next step
+                if (this._oSelectedStep && !this._oSelectedStep.bLast) {
+                    this._wizard.goToStep(oNextStep, true);
+                } else {
+                    this._wizard.nextStep();
+                }
+
+                this._iSelectedStepIndex++;
+                this._oSelectedStep = oNextStep;
+
+                this._handleButtonsVisibility();
+            },
+
+
+
+
+            onInputLiveChange: function (oEvent) {
+                var oInput = oEvent.getSource();
+                var sValue = oInput.getValue();
+
+                if (sValue && sValue.trim() !== "") {
+                    oInput.setValueState("None");
+                }
+            },
+
+            // onNextButtonPress: function () {
+            //     this._iSelectedStepIndex = this._wizard.getSteps().indexOf(this._oSelectedStep);
+            //     var oNextStep = this._wizard.getSteps()[this._iSelectedStepIndex + 1];
+
+            //     if (this._oSelectedStep && !this._oSelectedStep.bLast) {
+            //         this._wizard.goToStep(oNextStep, true);
+            //     } else {
+            //         this._wizard.nextStep();
+            //     }
+
+            //     this._iSelectedStepIndex++;
+            //     this._oSelectedStep = oNextStep;
+
+            //     this._handleButtonsVisibility();
+            // },
+
+            onPreviousBackButton: function () {
+                this._iSelectedStepIndex = this._wizard.getSteps().indexOf(this._oSelectedStep);
+                var oPreviousStep = this._wizard.getSteps()[this._iSelectedStepIndex - 1];
+
+                if (this._oSelectedStep) {
+                    this._wizard.goToStep(oPreviousStep, true);
+                } else {
+                    this._wizard.previousStep();
+                }
+
+                this._iSelectedStepIndex--;
+                this._oSelectedStep = oPreviousStep;
+
+                this._handleButtonsVisibility();
+            },
+
+            loadLanguages: function (oControlEvent) {
+                oControlEvent.getSource().getBinding("items").resume();
+            },
+
+            wizardModelDataUpdate: function () {
+                var oComboBox = this.getView().byId("ConutryCode_1");
+
+                var sPhoneCode = "";
+                var oComboBox = this.getView().byId("ConutryCode_1");
+
+                if (oComboBox.getSelectedItem()) {
+                    var sFullText = oComboBox.getSelectedItem().getText(); // e.g. "1 (US)"
+                    sPhoneCode = sFullText.split(" ")[0]; // 👉 Gets "1"
+                }
+                var oComboBox2 = this.getView().byId("ConutryCode_2");
+
+                var sPhoneCode2 = "";
+                var oComboBox2 = this.getView().byId("ConutryCode_2");
+
+                if (oComboBox2.getSelectedItem()) {
+                    var sFullText = oComboBox.getSelectedItem().getText(); // e.g. "1 (US)"
+                    sPhoneCode2 = sFullText.split(" ")[0]; // 👉 Gets "1"
+                }
+
+
+                this.oWizardModel.setProperty("/GeneralViewData", Object.assign(
+                    {}, // Clone existing data
+                    this.oWizardModel.getProperty("/GeneralViewData"), // Keep existing values
+                    {
+                        Phonecode: sPhoneCode,
+                        Phonecode2: sPhoneCode2,
+                        CurrencyKey: this.getView().byId("Currencym").getValue(),
+                        CustTimezone: this.getView().byId("timezonem").getValue(),
+                        Preferedlang: this.getView().byId("prefLangm").getValue(),
+                        DMSFolderFlg: this.dmsFolderCreationFlag === 0 ? "" : "X",
+                        TempFolderID: this.dmsFolderCreationFlag === 0 ? "" : this.folderId,
+                        PaymentType: this.getView().byId("pymtMthdm").getValue(),
+                        PaymentTerms: (this.getView().byId("pymtTerms").getValue().match(/\(([^)]+)\)/) || [null, this.getView().byId("pymtTerms").getValue()])[1],
+                        Ssn: this.getView().byId("iSSN").getValue(),
+                        EmployeeIdentificationNumber: this.getView().byId("iEIN").getValue(),
+                    }
+                ));
+                //   this.oWizardModel.setProperty("/NewBankDetail", Object.assign(
+                //     {},
+                //     this.oWizardModel.getProperty("/NewBankDetail"),
+                //     {}
+                //   ));
+
+                this.oWizardModel.setProperty("/_BankInformation", Object.assign(
+                    {}, // Clone existing data
+                    this.oWizardModel.getProperty("/_BankInformation"), // Keep existing values
+                    {
+                        WithholdingTaxCheckbox:this.getView().byId("taxCheckbox").getSelected() ? 'X':'',
+                    }
+                ));
+
+                this.oWizardModel.setProperty("/_AddressNum", Object.assign(
+                    {},
+                    this.oWizardModel.getProperty("/_AddressNum"),
+                    {
+                        // CountryKey: this.getView().byId("supCountry").getValue().match(/\(([^)]+)\)/)[1],
+                        CountryKey: (this.getView().byId("supCountry").getValue().match(/\(([^)]+)\)/) || [null, this.getView().byId("supCountry").getValue()])[1],
+                        // CountryKey: this.getView().byId("supCountry").getValue(),
+                        City: this.getView().byId("city").getSelectedKey(),
+                        Region: this.getView().byId("statem").getValue(),
+                        TeleCode: sPhoneCode,
+                        TeleCode2: sPhoneCode2,
+
+                        Preferedlang: this.getView().byId("prefLangm").getValue(),
+                        AdTimezone: this.getView().byId("timezonem").getValue(),
+                    }
+                ));
+
+                if (this.fTaxDraftExistOrNot == "Empty") {
+                    this.oWizardModel.setProperty("/_BusPartnerTAX", Object.assign(
+                        {},
+                        this.oWizardModel.getProperty("/_BusPartnerTAX"),
+                        {
+                            TaxNumber: "",
+                            TaxNumberCategory: "",
+                        }
+                    ))
+                }
+                else {
+                    this.oWizardModel.setProperty("/_BusPartnerTAX", Object.assign(
+                        {},
+                        this.oWizardModel.getProperty("/_BusPartnerTAX"),
+                        {
+                            TaxNumberCategory: this.fTaxDraftExistOrNot ? this.oWizardModel.getProperty("/_BusPartnerTAX/TaxNumberCategory") : this.oWizardModel.getData().CountryTaxCategories[this.iIndexSelectedTaxCategory].TaxType,
+                        }
+                    ))
+                }
+            },
+
+            handleWizardCancel: function () {
+                this._handleMessageBoxOpen("Are you sure you want to cancel your purchase?", "warning");
+            },
+
+            handleWizardDraftSubmit: function () {
+                this.wizardModelDataUpdate();
+                this.fDraftORFinal = true;
+                this.getView().setBusy(true);
+                this.UpdateEntrySubmit();
+            },
+
+            handleWizardSubmit: function () {
+                this.fDraftORFinal = false;
+                this.getView().setBusy(true);
+                this.UpdateEntrySubmit();
+            },
+
+            UpdateEntrySubmit: async function () {
+                var that = this;
+                this.getView().setBusy(true);
+                var sUpdateGroupId = this.oModel.getUpdateGroupId();
+
+                var aHeaderData = this.oWizardModel.getProperty("/GeneralViewData");
+                var aBankInfo = this.oWizardModel.getProperty("/_BankInformation");
+                var aAddressData = this.oWizardModel.getProperty("/_AddressNum");
+                var aWithHoldingData = this.oWizardModel.getProperty("/_WithHoldingTAX");
+                var aBusPartnerTAXData = this.oWizardModel.getProperty("/_BusPartnerTAX");
+
+                var aFilters = [
+                    new Filter("Email", FilterOperator.EQ, this.oTempEmail),
+                    new Filter("IsActiveEntity", FilterOperator.EQ, false)
+                ];
+
+                try {
+                    var oTempListBinding = this.oModel.bindList("/GeneralView", undefined, undefined, aFilters, {
+                        "$expand": "_BankInformation,_AddressNum,_BusPartnerTAX,_WithHoldingTAX"
+                    });
+
+                    const aContexts = await oTempListBinding.requestContexts(0, 1);
+                    const oUpdateContext = aContexts[0];
+                    const oData = oUpdateContext.getObject();
+
+                    // ✅ Update GeneralView (parent entity)
+                    Object.keys(aHeaderData).forEach((key) => {
+                        oUpdateContext.setProperty(key, aHeaderData[key]);
+                    });
+
+                oUpdateContext.setProperty("RbgSelectedTaxIdOption",oUpdateContext.getProperty("RbgSelectedTaxIdOption").toString());       //++AKG
+                    // ✅ Update all child entities
+                    await this._updateOrCreateMultipleChildEntities(
+                        oUpdateContext.sPath + "/_BankInformation",
+                        this.oWizardModel.getProperty("/BankDetails"),
+                        oData._BankInformation
+                    );
+                    await this._updateSingleChildEntity(
+                        oUpdateContext.sPath + "/_WithHoldingTAX",
+                        aWithHoldingData,
+                        oUpdateContext.sPath + "/(WithHoldTaxUUID=" + oData._WithHoldingTAX[0].WithHoldTaxUUID + ",IsActiveEntity=false)"
+                    );
+                    await this._updateSingleChildEntity(
+                        oUpdateContext.sPath + "/_BusPartnerTAX",
+                        aBusPartnerTAXData,
+                        oUpdateContext.sPath + "/_BusPartnerTAX(BPTaxUUID=" + oData._BusPartnerTAX[0].BPTaxUUID + ",IsActiveEntity=false)"
+                    );
+                    await this._updateSingleChildEntity(
+                        oUpdateContext.sPath + "/_AddressNum",
+                        aAddressData,
+                        oUpdateContext.sPath + "/_AddressNum(Addressnumuuid=" + oData._AddressNum[0].Addressnumuuid + ",IsActiveEntity=false)"
+                    );
+
+                    // ✅ Submit batch
+                    await this.oModel.submitBatch(sUpdateGroupId);
+
+                    // ✅ Fetch updated data for confirmation
+                    const oUpdatedResponse = await this._getExpandedUpdatedData(oUpdateContext.sPath, "_BankInformation,_AddressNum,_BusPartnerTAX,_WithHoldingTAX");
+
+                    if (that.fDraftORFinal) {
+                        MessageBox.success("Draft Data Updated Successfully!");
+                    } else {
+                        const oActionBinding = that.oModel.bindContext(
+                            "com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.ActivateEntry(...)",
+                            oUpdateContext
+                        );
+
+                        oActionBinding.setParameter("SupplierBpnumber", oUpdatedResponse.Customernumber);
+                        oActionBinding.setParameter("EmailId", oUpdatedResponse.Email);
+                        oActionBinding.setParameter("activeflg", "X");
+
+                        await oActionBinding.execute();
+                        that.onCallWorkFlow(oUpdatedResponse, oUpdatedResponse._BankInformation[0], oUpdatedResponse._AddressNum[0]); // You can adjust this based on your use case
+                    }
+
+                    that.oModel.refresh();
+                } catch (oError) {
+                    console.error("Update failed:", oError);
+                    MessageBox.error("Update failed: " + oError.message);
+                } finally {
+                    this.getView().setBusy(false);
+                }
+            },
+
+            _updateSingleChildEntity: async function (sPath, oUpdatedData, sMatchPath) {
+                const oListBinding = this.oModel.bindList(sPath);
+                const aContexts = await oListBinding.requestContexts(0, 10);
+
+                const oUpdateContext = aContexts.find(ctx => ctx.getPath() === sMatchPath);
+                if (oUpdateContext) {
+                    Object.keys(oUpdatedData).forEach((key) => {
+                        if (typeof oUpdatedData[key] !== "object") {
+                            oUpdateContext.setProperty(key, oUpdatedData[key]);
+                        }
+                    });
+                }
+            },
+
+            _updateOrCreateMultipleChildEntities: async function (sPath, aNewData, aExistingData) {
+                const oListBinding = this.oModel.bindList(sPath);
+                const aContexts = await oListBinding.requestContexts(0, 100); // adjust range as needed
+
+                for (let i = 0; i < aNewData.length; i++) {
+                    const oNewEntry = aNewData[i];
+
+                    // Find existing entry by UUID or any unique key you use
+                    let oExisting = aExistingData.find(e => e.BankInfoUUID === oNewEntry.BankInfoUUID);
+
+                    if (oExisting) {
+                        // Update existing context
+                        const sMatchPath = sPath + "(BankInfoUUID=" + oNewEntry.BankInfoUUID + ",IsActiveEntity=false)";
+                        const oContext = aContexts.find(ctx => ctx.getPath() === sMatchPath);
+                        if (oContext) {
+                            Object.keys(oNewEntry).forEach(key => {
+                                if (typeof oNewEntry[key] !== "object") {
+                                    oContext.setProperty(key, oNewEntry[key]);
+                                }
+                            });
+                        }
+                    } else {
+                        // Create new entry
+                        const oNewContext = oListBinding.create(oNewEntry);
+                        // You may optionally store the context to retrieve its UUID after submit
+                    }
+                }
+            },
+
+            _getExpandedUpdatedData: async function (sPath, sExpand) {
+                const oBinding = this.oModel.bindContext(sPath, undefined, { "$expand": sExpand });
+                return await oBinding.requestObject();
+            },
+
+            editStepOne: function () {
+                this._handleNavigationToStep(0);
+            },
+
+            editStepTwo: function () {
+                this._handleNavigationToStep(1);
+            },
+
+            editStepThree: function () {
+                this._handleNavigationToStep(2);
+            },
+
+            _handleNavigationToStep: function (iStepNumber) {
+                this._wizard.goToStep(this._wizard.getSteps()[iStepNumber], true);
+            },
+
+            onDeclarationSelected: function (oEvent) {
+                var oDeclarationSelectedStatus = oEvent.getParameter('selected');
+                if (oDeclarationSelectedStatus) {
+                    this.oWizardModel.setProperty("/VisibleEnableFlag/submitButtonVisible", true);
+                }
+                else {
+                    this.oWizardModel.setProperty("/VisibleEnableFlag/submitButtonVisible", false);
+                }
+            },
+
+            onCallWorkFlow: function (oHeaderData, oBankData, oAddressData) {
+                var that = this;
+                var url = "/sap_process_automation_destination/workflow/rest/v1/workflow-instances";
+                var sUrl = this._getExternalServiceRuntimeBaseURL() + url;
+                debugger;
+                var aCountry = that.getView().byId("supCountry").getValue();
+                var aTimezone = that.getView().byId("timezone").getValue();
+                var aBankInfo = oHeaderData._BankInformation;
+
+                var aValidBankInfo = aBankInfo.filter(function (oItem) {
+
+                    return !(oItem.Accountholder === "" &&
+                        oItem.BankNumber === "" &&
+                        oItem.Bankaccount === "" &&
+                        oItem.Bankkey === "" &&
+                        oItem.Country === "" &&
+                        oItem.Iban === "" &&
+                        oItem.SWIFT === "");
+                });
+
+                var payload = {
+                    "definitionId": "us10.inveniolsi-me-xw7g46du.supplierapproval.supplierApproval",
+                    "context": {
+                        "supplierContext": {
+                            "Street": oAddressData.Name,
+                            "City": oAddressData.City,
+                            "Postal_code": oAddressData.PostalCode,
+                            "BP_ROLE": "",
+                            "BP_GROUP": "",
+                            "Additinal_approver": "",
+                            "Initiator": "manish.rawat@inveniolsi.com",
+                            "Supplier_No": oHeaderData.Customernumber,
+                            "REJ_ROLE": "",
+                            "REJ_REASON": "",
+                            "Mobile_No": oHeaderData._AddressNum[0].Telephone,
+                            "Company_name1": oHeaderData.Companyname1,
+                            "Company_name_2": oHeaderData.Companyname2,
+                            "Address_Line_1": oAddressData.Name,
+                            "Address_Line_2": oAddressData.Name2,
+                            "Country": aCountry,
+                            "Time_Zone": aTimezone,
+                            "Preferred_Language": oHeaderData.Preferedlang,
+                            "HYBE_Contact_Person": oHeaderData.HybeContactPerson,
+                            "countryKey": "",
+                            "BankData": aValidBankInfo,
+                            // {
+                            //     "BankNumber": "",
+                            //     "BankName": "",
+                            //     "BankCountryKey": oBankData.Country,
+                            //     "BankAccount": oBankData.Bankaccount,
+                            //     "BankAccountName": "",
+                            //     "IBAN": "",
+                            //     "BankIdentification": ""
+                            // }
+                            // ],
+                            "Mobile_number": [
+                                {
+                                    "PhoneNumber": oHeaderData._AddressNum[0].Telephone2
+                                }
+                            ],
+                            "Email": [
+                                {
+                                    "EmailAddress": oHeaderData.Email
+                                }
+                            ]
+                        }
+                    }
+                }
+
+                // var payload =           
+                // {
+                //     "definitionId": "us10.inveniolsi-me-xw7g46du.supplierapproval.supplierApproval",
+                //     "context": {
+                //         "supplierContext": {
+                //             "Street": oAddressData.Name,
+                //             "City": oAddressData.City,
+                //             "Postal_code": oAddressData.PostalCode,
+                //             "BP_ROLE": "",
+                //             "BP_GROUP": "",
+                //             "Additinal_approver": "",
+                //             "Initiator": "manish.rawat@inveniolsi.com",
+                //             "Supplier_No": oHeaderData.Customernumber,
+                //             "REJ_ROLE": "",
+                //             "REJ_REASON": "",
+                //             "Mobile_No": oHeaderData.Phonenumber,
+                //             "Company_name1": oHeaderData.Companyname1,
+                //             "Company_name_2": oHeaderData.Companyname2,
+                //             "Address_Line_1": oAddressData.Name,
+                //             "Address_Line_2": oAddressData.Name2,
+                //             "Country": oHeaderData.Country,
+                //             // "State": oHeaderData.State,
+                //             "Time_Zone": oHeaderData.CustTimezone,
+                //             "Preferred_Language": oAddressData.LanguageKey,
+                //             "HYBE_Contact_Person": oHeaderData.Customername,
+                //             "countryKey": oHeaderData.Country,
+                //             "BankData": {
+                //                 "BankNumber": "",
+                //                 "BankName": "",
+                //                 "BankCountryKey": oHeaderData.Country,
+                //                 "BankAccount": oBankData.Bankaccount,            
+                //                 "BankAccountName": "",            
+                //                 "CityName": "",            
+                //                 "SWIFTCode": ""            
+                //             },            
+                //             "Mobile_number": [            
+                //                 {            
+                //                     "PhoneNumber": oHeaderData.Phonenumber2            
+                //                 }            
+                //             ],            
+                //             "Email": [            
+                //                 {            
+                //                     "EmailAddress": oHeaderData.Email            
+                //                 }            
+                //             ]            
+                //         }
+                //     }
+                // }
+                jQuery.ajax({
+                    url: sUrl, // URL for BPA API
+                    method: "POST", // Assuming you're starting a process
+                    contentType: "application/json",
+                    dataType: "json",
+                    headers: {
+                        "Accept": "application/json"
+                    },
+                    data: JSON.stringify(payload),
+                    success: function (response) {
+                        console.log("Process started successfully", response);
+                        MessageBox.success("Supplier and Bank Information updated successfully!", {
+                            onClose: function (oAction) {
+                                if (oAction === "OK") {
+                                    this._wizard.discardProgress(this._wizard.getSteps()[0]);
+                                    this._iSelectedStepIndex = 0;
+                                    this._handleButtonsVisibility();
+                                    this.resetModel();
+                                }
+                            }.bind(that)
+                        });
+                    },
+                    error: function (error) {
+                        console.error("Error starting process", error);
+                    }
+                });
+            },
+
+            _getExternalServiceRuntimeBaseURL: function () {
+                var oComponent = sap.ui.core.Component.getOwnerComponentFor(this.getView());
+                if (oComponent) {
+                    var sAppId = 'zbmlgp2psupreg02.project1'
+                    //'com.bmlg.zp2psupreg';
+                    var sAppPath = sAppId.replaceAll(".", "/");
+                    var sAppModulePath = jQuery.sap.getModulePath(sAppPath);
+                    return sAppModulePath;
+                } else {
+                    console.error("Component could not be found.");
+                    return "";
+                }
+            },
+
+            onFolderCreation: function (sFolderName) {
+                var that = this;
+                var url = "/dms_destination/browser/6e9d11ff-1711-4cd7-b7fb-e5d9cf4b06f3/root";
+                var sUrl = this._getExternalServiceRuntimeBaseURL() + url;
+
+                var oPayload = {
+                    "cmisaction": "createFolder",
+                    "propertyId[0]": "cmis:name",
+                    "propertyValue[0]": sFolderName,
+                    "propertyId[1]": "cmis:objectTypeId",
+                    "propertyValue[1]": "cmis:folder",
+                    "succinct": true
+                };
+
+                jQuery.ajax({
+                    url: sUrl,
+                    method: "POST",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    data: jQuery.param(oPayload), // Convert payload to URL encoded format
+                    success: function (response) {
+                        console.log("Folder created successfully:", response);
+                        that.dmsFolderCreationFlag = 1;
+                        var parentFolderName = response.succinctProperties['cmis:name'];
+                        that.folderId = response.succinctProperties['cmis:objectId'];
+                        // Call function to create subfolders
+                        that.createSubFolder(parentFolderName, "BANK");
+                        that.createSubFolder(parentFolderName, "TAX");
+                    },
+                    error: function (error) {
+                        console.error("Error creating folder:", error);
+                    }
+                });
+            },
+
+            onWithHoldCheckBoxPress: function (oCheck) {
+                var aChecked = oCheck.getParameter('selected');
+                if (aChecked) {
+                    // this.getView().byId("Tax_fileUploader").setVisible(true);
+                    this.getView().byId("withHoldingButton").setVisible(true);
+                }
+                else {
+                    // this.getView().byId("Tax_fileUploader").setVisible(false);
+                    this.getView().byId("withHoldingButton").setVisible(false);
+                }
+            },
+
+            createSubFolder: function (parentFolderName, folderName) {
+                var that = this;
+                var url = "/dms_destination/browser/6e9d11ff-1711-4cd7-b7fb-e5d9cf4b06f3/root/" + parentFolderName;
+                var sUrl = this._getExternalServiceRuntimeBaseURL() + url;
+
+                var oPayload = {
+                    "cmisaction": "createFolder",
+                    "propertyId[0]": "cmis:name",
+                    "propertyValue[0]": folderName,
+                    "propertyId[1]": "cmis:objectTypeId",
+                    "propertyValue[1]": "cmis:folder",
+                    "succinct": true
+                };
+
+                jQuery.ajax({
+                    url: sUrl,
+                    method: "POST",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    data: jQuery.param(oPayload),
+                    success: function (response) {
+                        console.log("Subfolder '" + folderName + "' created successfully:", response);
+                        that.dmsFolderCreationFlag = 1;
+                        if (folderName === "BANK") {
+                            this.BankFolderObjectID = response.succinctProperties['cmis:objectId'];
+                        }
+                        else if (folderName === "TAX") {
+                            this.TaxFolderObjectID = response.succinctProperties['cmis:objectId'];
+                        }
+                    },
+                    error: function (error) {
+                        console.error("Error creating subfolder '" + folderName + "':", error);
+                    }
+                });
+            },
+
+            resetModel: function () {
+                if (this._initialWizardData) {
+                    this.oWizardModel.setData(JSON.parse(JSON.stringify(this._initialWizardData)));
+                } else {
+                    console.warn("Initial model data not set. Call _initChildEntities() first.");
+                }
+            },
+
+            onTaxSelectionChange: function (oEvent) {
+                var ssn = this.getView().byId("ssn");
+                var ein = this.getView().byId("ein");
+                var vat = this.getView().byId("vat");
+                var sSelectedIndex = oEvent.getParameter("selectedIndex");
+                switch (sSelectedIndex) {
+                    case 0:
+                        ssn.setVisible(true);
+                        ein.setVisible(false);
+                        vat.setVisible(false);
+                        break;
+                    case 1:
+                        ssn.setVisible(false);
+                        ein.setVisible(true);
+                        vat.setVisible(false);
+                        break;
+                    case 3:
+                        ssn.setVisible(false);
+                        ein.setVisible(false);
+                        vat.setVisible(true);
+                        break;
+                    default:
+                        ssn.setVisible(false);
+                        ein.setVisible(false);
+                        vat.setVisible(false);
+                        break;
+                }
+            },
+
+            onSupplierCountrySelected: function (sCountry) {
+                const oTable = this.byId("taxTable");
+                this._filterDependentComboBoxes(sCountry);
+                const sSelectedCountry = sCountry; //this.oWizardModel.getProperty("/GeneralViewData/Country");
+                if (!sSelectedCountry) {
+                    return;
+                }
+
+                const oListBinding = this.oModel.bindList("/CountryTaxCategories_VH", undefined, undefined,
+                    new sap.ui.model.Filter("Country", "EQ", sSelectedCountry)
+                );
+
+                oListBinding.requestContexts().then(aContexts => {
+                    if (!aContexts.length) {
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/taxCategoryTableEnabled", false);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/taxCategoryDraft", false);
+                        this.fTaxDraftExistOrNot = "Empty";
+                    }
+                    else {
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/taxCategoryDraft", false);
+                        this.oWizardModel.setProperty("/VisibleEnableFlag/taxCategoryTableEnabled", true);
+                        this.oWizardModel.setProperty("/_BusPartnerTAX/TaxNumber", "");
+                        this.fTaxDraftExistOrNot = false;
+                        var aResult = aContexts.map(oCtx => {
+                            const oObj = oCtx.getObject();
+                            return {
+                                TaxType: oObj.TaxType,
+                                Text: oObj.Text,
+                                showInput: false
+                            };
+                        });
+                    }
+
+                    this.oWizardModel.setProperty("/CountryTaxCategories", aResult);
+                }).catch(err => {
+                    console.error("Failed to fetch tax categories:", err);
+                });
+            },
+
+            onBankCountryChange: async function (oEvent) {
+
+
+                const oBankCountry = sap.ui.getCore().byId("bankCountry");
+                oBankCountry.setBusy(true);
+
+                const sCountryKey = oEvent.getSource().getSelectedKey(); // e.g., 'DE'
+                const sPath = `/BankKeyListVH('${encodeURIComponent(sCountryKey)}')/Set`;  // Note: URL encoding is important
+
+                this.getOwnerComponent().getModel().bindList(sPath).requestContexts(0, 1000).then((aContexts) => {
+                    const aResults = aContexts.map(oContext => oContext.getObject());
+                    console.log("Bank Keys:", aResults);
+
+                    const oBankKeyVHModel = new sap.ui.model.json.JSONModel({ Set: aResults });
+                    this.getView().setModel(oBankKeyVHModel, "bankKeyVHModel");
+                    sap.ui.getCore().byId("bankKeyComboBox").setVisible(true);
+                    oBankCountry.setBusy(false);
+
+                }).catch((err) => {
+                    oBankCountry.setBusy(false);
+                    console.error("Failed to fetch bank keys", err);
+                });
+
+            },
+
+            onBankKeyChange: function (oEvent) {
+                sap.ui.getCore().byId("bankKeyComboBox").setBusy(true);
+                const sSelectedBankKey = oEvent.getSource().getSelectedItem().getText();
+                const aBankKeys = this.getView().getModel("bankKeyVHModel").getProperty("/Set");
+
+                // Find the selected bank key object
+                const oSelectedBank = aBankKeys.find(item => item.BANKK === sSelectedBankKey);
+
+                if (oSelectedBank) {
+                    this.oWizardModel.setProperty("/VisibleEnableFlag/swiftANDbankNum", true);
+                    this.oWizardModel.setProperty("/NewBankDetail/Bankkey", sSelectedBankKey);
+                    this.oWizardModel.setProperty("/NewBankDetail/SWIFT", oSelectedBank.SWIFT);
+                    this.oWizardModel.setProperty("/NewBankDetail/BankNumber", oSelectedBank.BANKL);
+                    sap.ui.getCore().byId("bankKeyComboBox").setBusy(false);
+                } else {
+                    console.warn("Selected bank key not found in the list.");
+                }
+            },
+
+            getUpdateContext: async function (sEmail) {
+                const oListBinding = this.oModel.bindList("/GeneralView", undefined, undefined,
+                    new Filter("Email", FilterOperator.EQ, sEmail), {
+                    "$expand": "_BankInformation,_AddressNum,_BusPartnerTAX,_WithHoldingTAX"
+                });
+
+                const aContexts = await oListBinding.requestContexts(0, 1);
+                return aContexts[0]; // returns the first matched context
+            },
+
+            onSwiftEntered: async function () {
+                const oSwiftNumber = sap.ui.getCore().byId("swiftInput");
+                oSwiftNumber.setBusy(true);
+                const oUpdateContext = await this.getUpdateContext(this.oTempEmail);
+                const oActionBinding = this.oModel.bindContext(
+                    //"com.sap.gateway.srvd.zui_general_view_o4.v0001.CheckBankSWIFT(...)",
+                    "com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.CheckIBCheckBankSWIFTan(...)",
+                    oUpdateContext
+                );
+                // Set action parameters
+                oActionBinding.setParameter("SWIFT", oSwiftNumber.getValue());
+                oActionBinding.setParameter("BANKS", this.oWizardModel.getProperty("/NewBankDetail/Country"));
+
+
+                oActionBinding.setParameter("msgtype", "");
+                oActionBinding.setParameter("msgText", "");
+
+                try {
+                    await oActionBinding.execute(); // safely executes action
+                    const result = oActionBinding.getBoundContext().getObject().value[0];
+                    if (result.msgtype === 'E') {
+                        oSwiftNumber.setBusy(false);
+                        oSwiftNumber.setValueState("Error");
+                        oSwiftNumber.setValueStateText(result.msgText);
+                    }
+                    else {
+                        oSwiftNumber.setBusy(false);
+                        oSwiftNumber.setValueState("None");
+                    }
+                } catch (oError) {
+                    // Handles communication or execution errors
+                    MessageBox.error("Action failed: " + oError.message);
+                    oSwiftNumber.setBusy(false);
+                    oSwiftNumber.setValueState("Error");
+                    oSwiftNumber.setValueStateText("Swift Number validation failed due to technical error.");
+                }
+            },
+
+            onBankkeyEntered: async function () {
+                const oBankkey = this.getView().byId("routeNumber");
+                oBankkey.setBusy(true);
+                const oUpdateContext = await this.getUpdateContext(this.oTempEmail);
+                const oActionBinding = this.oModel.bindContext(
+                    //"com.sap.gateway.srvd.zui_general_view_o4.v0001.CheckBankKey(...)",
+                    "com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.CheckBankKey(...)",
+                    oUpdateContext
+                );
+                // Set action parameters
+                oActionBinding.setParameter("BANKK", oBankkey.getValue());
+                oActionBinding.setParameter("BANKS", this.oWizardModel.getProperty("/NewBankDetail/Country"));
+                //oActionBinding.setParameter("BANKL", "");
+                //oActionBinding.setParameter("iban", "");
+                //oActionBinding.setParameter("msgtype", "");
+                //oActionBinding.setParameter("msgText", "");
+                oActionBinding.setParameter("msgtype", "");
+                oActionBinding.setParameter("msgText", "");
+
+                try {
+                    await oActionBinding.execute(); // safely executes action
+                    const result = oActionBinding.getBoundContext().getObject().value[0];
+                    if (result.msgtype === 'E') {
+                        oBankkey.setBusy(false);
+                        oBankkey.setValueState("Error");
+                        oBankkey.setValueStateText(result.msgText);
+                    }
+                    else {
+                        oBankkey.setBusy(false);
+                        oBankkey.setValueState("None");
+                        this.oWizardModel.setProperty("/NewBankDetail/BankNumber", result.BANKL);
+                        this.oWizardModel.setProperty("/NewBankDetail/SWIFT", result.SWIFT);
+                    }
+                } catch (oError) {
+                    // Handles communication or execution errors
+                    MessageBox.error("Action failed: " + oError.message);
+                    oBankkey.setBusy(false);
+                    oBankkey.setValueState("Error");
+                    oBankkey.setValueStateText("Routing Number validation failed due to technical error.");
+                }
+            },
+
+            onBankNumber: async function () {
+                const oBankNumInput = sap.ui.getCore().byId("bankNum");
+                oBankNumInput.setBusy(true);
+                const oUpdateContext = await this.getUpdateContext(this.oTempEmail);
+                const oActionBinding = this.oModel.bindContext(
+                    //"com.sap.gateway.srvd.zui_general_view_o4.v0001.CheckBankNumber(...)",
+                    "com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.CheckBankNumber(...)",
+                    oUpdateContext
+                );
+                // Set action parameters
+                oActionBinding.setParameter("BANKL", oBankNumInput.getValue());
+                oActionBinding.setParameter("BANKS", this.oWizardModel.getProperty("/NewBankDetail/Country"));
+
+                oActionBinding.setParameter("iban", "");
+                oActionBinding.setParameter("BANKN", "");
+                oActionBinding.setParameter("msgtype", "");
+                oActionBinding.setParameter("msgText", "");
+
+                try {
+                    await oActionBinding.execute(); // safely executes action
+                    const result = oActionBinding.getBoundContext().getObject().value[0];
+                    if (result.msgtype === 'E') {
+                        oBankNumInput.setBusy(false);
+                        oBankNumInput.setValueState("Error");
+                        oBankNumInput.setValueStateText(result.msgText);
+                    }
+                    else {
+                        oBankNumInput.setBusy(false);
+                        oBankNumInput.setValueState("None");
+                    }
+                } catch (oError) {
+                    // Handles communication or execution errors
+                    MessageBox.error("Action failed: " + oError.message);
+                    oBankNumInput.setBusy(false);
+                    oBankNumInput.setValueState("Error");
+                    oBankNumInput.setValueStateText("Bank Number validation failed due to technical error.");
+                }
+            },
+
+            onAccountNumberEntered: async function () {
+                const oAccNumInput = sap.ui.getCore().byId("accountNum");
+                const oBankNumInput = sap.ui.getCore().byId("bankNum");
+                var oSwiftInput = sap.ui.getCore().byId("swiftInput");
+                const sAccNumber = oAccNumInput?.getValue().trim();
+
+                // If account number is empty, disable bankNum and swiftInput
+                if (!sAccNumber) {
+                    oBankNumInput?.setEditable(true);
+                    oSwiftInput?.setEditable(true);
+                    oAccNumInput.setValueState("None");
+                    oAccNumInput.setValueStateText("");
+                    sap.ui.getCore().byId("ibanInput").setValue("");
+
+                    return;
+                } else {
+
+                    oAccNumInput.setBusy(true);
+                    const oUpdateContext = await this.getUpdateContext(this.oTempEmail);
+                    const oActionBinding = this.oModel.bindContext(
+                        //"com.sap.gateway.srvd.zui_general_view_o4.v0001.CheckBankAccount(...)",
+                        "com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.CheckBankAccount(...)",
+                        oUpdateContext
+                    );
+                    // Set action parameters
+                    oActionBinding.setParameter("BANKN", oAccNumInput.getValue());
+                    oActionBinding.setParameter("BANKL", oBankNumInput.getValue());
+                    oActionBinding.setParameter("BANKS", this.oWizardModel.getProperty("/NewBankDetail/Country"));
+                    oActionBinding.setParameter("msgtype", "");
+                    oActionBinding.setParameter("msgText", "");
+
+                    try {
+                        await oActionBinding.execute(); // safely executes action
+                        const result = oActionBinding.getBoundContext().getObject().value[0];
+                        // this.onMakeBankFieldsEditable();
+
+                        // editable true acc submit
+                        // Set editable = true
+                        if (oBankNumInput) {
+                            oBankNumInput.setEditable(true);
+                        }
+
+                        if (oSwiftInput) {
+                            oSwiftInput.setEditable(true);
+                        }
+
+                        if (result.msgtype === 'E') {
+                            oAccNumInput.setBusy(false);
+                            oAccNumInput.setValueState("Error");
+                            oAccNumInput.setValueStateText(result.msgText);
+                        }
+                        else {
+                            oAccNumInput.setBusy(false);
+                            oAccNumInput.setValueState("None");
+                            this.oWizardModel.setProperty("/NewBankDetail/Iban", result.IBAN);
+                        }
+                    } catch (oError) {
+                        // editable false acc submit
+                        var oBankNum = sap.ui.getCore().byId("bankNum");
+                        var oSwiftInput = sap.ui.getCore().byId("swiftInput");
+
+
+                        // Set editable = false
+                        if (oBankNumInput) {
+                            oBankNumInput.setEditable(false);
+                        }
+
+                        if (oSwiftInput) {
+                            oSwiftInput.setEditable(false);
+                        }
+                        // Handles communication or execution errors
+                        MessageBox.error("Action failed: " + oError.message);
+                        oAccNumInput.setBusy(false);
+                        oAccNumInput.setValueState("Error");
+                        oAccNumInput.setValueStateText("Account Number validation failed due to technical error.");
+                    }
+                }
+            },
+
+            onIBANEntered: async function () {
+                const oIBANInput = sap.ui.getCore().byId("ibanInput");
+                var oBankNum = sap.ui.getCore().byId("bankNum");
+                var oSwiftInput = sap.ui.getCore().byId("swiftInput");
+
+
+
+
+                oIBANInput.setBusy(true);
+                const oUpdateContext = await this.getUpdateContext(this.oTempEmail);
+
+                const oActionBinding = this.oModel.bindContext(
+                    //"com.sap.gateway.srvd.zui_general_view_o4.v0001.CheckIBan(...)",
+                    //GeneralView(Customernumber='432062025',IsActiveEntity=false)/com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.Prepare?sap-client=100 HTTP/1.1
+                    "com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.CheckIBan(...)",
+
+                    oUpdateContext
+                );
+
+                //var oActionBinding = this.getView().getModel();
+                //oActionBinding.bindContext("/GeneralView(Customernumber='432062025',IsActiveEntity=false)/com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.CheckIBan(...)")
+                //oActionBinding.sReducedPath = "/GeneralView(Customernumber='954372025',IsActiveEntity=true)/com.sap.gateway.srvd.zptp_sre_sdef_bp_general.v0001.CheckIBan(...)"
+                //Set action parameters
+                oActionBinding.setParameter("iban", oIBANInput.getValue()); // "DE89370400440532013000"
+                //oActionBinding.setParameter("BANKS", this.oWizardModel.getProperty("/NewBankDetail/Country"));                
+                oActionBinding.setParameter("BANKN", "");
+                oActionBinding.setParameter("BANKL", "");
+                oActionBinding.setParameter("BANKS", "");
+                oActionBinding.setParameter("msgtype", "");
+                oActionBinding.setParameter("msgText", "");
+
+                try {
+                    await oActionBinding.execute(); // safely executes action
+                    const result = oActionBinding.getBoundContext().getObject().value[0];
+                    if (result.msgtype === 'E') {
+                        oIBANInput.setBusy(false);
+                        oIBANInput.setValueState("Error");
+                        oIBANInput.setValueStateText(result.msgText);
+                    }
+                    else {
+                        oIBANInput.setBusy(false);
+                        // Set editable = false
+                        if (oBankNum) {
+                            oBankNum.setEditable(false);
+                        }
+
+                        if (oSwiftInput) {
+                            oSwiftInput.setEditable(false);
+                        }
+                        oIBANInput.setValueState("None");
+                        this.oWizardModel.setProperty("/NewBankDetail/BankNumber", result.BANKL);
+                        this.oWizardModel.setProperty("/NewBankDetail/Bankaccount", result.BANKN);
+                        this.oWizardModel.setProperty("/NewBankDetail/SWIFT", result.BANKN);
+                    }
+                } catch (oError) {
+                    // Handles communication or execution errors
+                    MessageBox.error("Action failed: " + oError.message);
+                    oIBANInput.setBusy(false);
+                    oIBANInput.setValueState("Error");
+                    oIBANInput.setValueStateText("IBAN validation failed due to technical error.");
+                }
+            },
+
+            onNewBankAdd: function () {
+                var oData = this.oWizardModel.getProperty("/NewBankDetail");
+
+                // Clear form fields
+                for (let key in oData) {
+                    oData[key] = "";
+                }
+
+                this.oWizardModel.setProperty("/NewBankDetail", oData);
+
+                if (!this._oDialog) {
+                    this._oDialog = Fragment.load({
+                        name: "zbmlgp2psupreg02.project1.ext.fragment.AddBankDetails",
+                        controller: this
+                    }).then(function (oDialog) {
+                        this.getView().addDependent(oDialog);
+                        return oDialog;
+                    }.bind(this));
+                }
+
+                this._oDialog.then(function (oDialog) {
+                    oDialog.open();
+                });
+            },
+
+            onNewBankDetailsubmit: function () {
+                var aBankDetails = this.oWizardModel.getProperty("/BankDetails");
+                var oNewDetail = Object.assign({}, this.oWizardModel.getProperty("/NewBankDetail"),
+                    {
+                        Companycode: "1710"
+                    }); // clone
+
+                aBankDetails.push(oNewDetail);
+                this.oWizardModel.setProperty("/BankDetails", aBankDetails);
+
+                this._oDialog.then(function (oDialog) {
+                    oDialog.close();
+                });
+                sap.ui.getCore().byId("bankKeyComboBox").setVisible(false);
+            },
+
+            onCancelPress: function () {
+
+                //  this.oWizardModel.setProperty("/NewBankDetail", "")
+                this._oDialog.then(function (oDialog) {
+                    oDialog.close();
+
+                });
+                sap.ui.getCore().byId("bankKeyComboBox").setVisible(false);
+            },
+
+            onTaxCategorySelect: function (oEvent) {
+                const oContext = oEvent.getParameter("listItem").getBindingContext("wizardModel");
+                const sPath = oContext.getPath();
+                this.iIndexSelectedTaxCategory = parseInt(sPath.split("/").pop());
+
+                const oModel = this.getView().getModel("wizardModel");
+                const aData = oModel.getProperty("/CountryTaxCategories");
+
+                aData.forEach((row, idx) => row.showInput = idx === this.iIndexSelectedTaxCategory);
+                oModel.setProperty("/CountryTaxCategories", aData);
+            },
+
+            onTaxReuseComponentCreated: function (oEvent) {
+                var sFolderName = this.oWizardModel.getProperty("/GeneralViewData/Customernumber");
+                var sTag = sFolderName + "-TAX";
+                var aFileTags = [];
+                aFileTags.push(sTag);
+                var oUploadFileSettingsModel = new JSONModel({
+                    "fileSize": 10,
+                    "fileTypes": ["jpg", "pdf", "png"],
+                    "fileTags": aFileTags,
+                    "folderId": this.oWizardModel.getProperty("/GeneralViewData/TempFolderID") || this.folderId,
+                    "folderName": sFolderName + "/TAX",
+                    "repoId": "6e9d11ff-1711-4cd7-b7fb-e5d9cf4b06f3",
+                    "uploadEnabled": true,
+                    "deleteEnabled": true,
+                    "renameEnabled": true
+                });
+
+                sap.ui.getCore().setModel(oUploadFileSettingsModel, "oUploadFileSettingsModel");
+            },
+
+            onBankReuseComponentCreated: function () {
+                var sFolderName = this.oWizardModel.getProperty("/GeneralViewData/Customernumber");
+                var sTag = sFolderName + "-BANK";
+                var aFileTags = [];
+                aFileTags.push(sTag);
+                var oUploadFileSettingsModel = new JSONModel({
+                    "fileSize": 10,
+                    "fileTypes": ["jpg", "pdf", "png"],
+                    "fileTags": aFileTags,
+                    "folderId": this.oWizardModel.getProperty("/GeneralViewData/TempFolderID") || this.folderId,
+                    "folderName": sFolderName + "/BANK",
+                    "repoId": "6e9d11ff-1711-4cd7-b7fb-e5d9cf4b06f3",
+                    "uploadEnabled": true,
+                    "deleteEnabled": true,
+                    "renameEnabled": true
+                });
+
+                sap.ui.getCore().setModel(oUploadFileSettingsModel, "oUploadFileSettingsModel");
+            },
+
+            onTaxRelatedFormUpload: function () {
+                this.oWizardModel.setProperty("/AttBtnId", "TaxUploadBtn");
+                this.onAttachmentDialog("TAX");
+            },
+
+            onWTaxCertificateUpload: function () {
+                this.oWizardModel.setProperty("/AttBtnId", "withHoldingButton");
+                this.onAttachmentDialog("WTax");
+            },
+
+            onBankRelatedFormUpload: function () {
+                // this.onAttachmentDialog("BANK")
+                const sAccountNum = sap.ui.getCore().byId("accountNum").getValue();
+
+                if (sAccountNum === '') {
+                    sap.ui.getCore().byId("accountNum").setValueState("Error");
+                    MessageToast.show("Please Enter the Account Number");
+                    return;
+                }
+                else {
+                    this.oWizardModel.setProperty("/AttBtnId", "BankUploadBtn");
+                    this.onAttachmentDialog(sAccountNum.slice(-4) + "-BANK");
+                }
+            },
+
+            onCheckUploadedBankForm: function (oEvent) {
+                // debugger;
+                const sBankPath = oEvent.getSource().getParent().getBindingContextPath();
+                const sAccountNum = this.oWizardModel.getProperty(sBankPath + "/Bankaccount");
+                if (sAccountNum === '') {
+                    sap.ui.getCore().byId("accountNum").setValueState("Error");
+                }
+                else {
+                    this.onAttachmentDialog(sAccountNum.slice(-4) + "-BANK");
+                }
+            },
+
+            onAttachmentDialog: function (sBtnSelection) {
+                var sFolderId, sFolderName;
+                var aFileTags = [];
+                var sFolderNameTag = this.oWizardModel.getProperty("/GeneralViewData/Customernumber");
+                if (sBtnSelection === "WTax") {
+                    aFileTags.push(sFolderNameTag + "-WTax");
+                    sFolderName = sFolderNameTag + "/TAX";
+                    sFolderId = "y0PteKGBMDseeziXoLDJVMyPhSZhu7H3UwbN53uKqf4";
+                    // sFolderId = "fXjgxUQVBG7qR-lAVoWK-pZEJumGayQbzL1J6KAmlNo";
+                }
+                else if (sBtnSelection === "TAX") {
+                    aFileTags.push(sFolderNameTag + "-TAX");
+                    sFolderName = sFolderNameTag + "/TAX";
+                    sFolderId = "y0PteKGBMDseeziXoLDJVMyPhSZhu7H3UwbN53uKqf4";
+                    // sFolderId = "fXjgxUQVBG7qR-lAVoWK-pZEJumGayQbzL1J6KAmlNo";
+                }
+                else {
+                    aFileTags.push(sFolderNameTag + "-" + sBtnSelection);
+                    sFolderName = sFolderNameTag + "/BANK";
+                    sFolderId = "aRFE5OYtEfhC28ulh7T99xCQpm8KDmgk4ecJG9JMEPY";
+                    // sFolderId = "oYeA2ES2uhAUgjLrleONM-Xvcnw69tvcgil3oxpMUNQ";
+                }
+                if (!this._Attach) {
+                    this._Attach = Fragment.load({
+                        id: this.getView().getId(),
+                        name: "zbmlgp2psupreg02.project1.ext.fragment.TaxRelatedDocUpload",
+                        controller: this
+                    }).then(function (oDialog) {
+                        this.getView().addDependent(oDialog);
+                        var oUploadFileSettingsModel = new JSONModel({
+                            "fileSize": 10,
+                            "fileTypes": ["jpg", "pdf", "png"],
+                            "fileTags": aFileTags,
+                            "folderId": sFolderId,
+                            "folderName": sFolderName,
+                            "repoId": "6e9d11ff-1711-4cd7-b7fb-e5d9cf4b06f3",
+                            "uploadEnabled": true,
+                            "deleteEnabled": true,
+                            "renameEnabled": true
+                        });
+
+                        sap.ui.getCore().setModel(oUploadFileSettingsModel, "oUploadFileSettingsModel");
+                        return oDialog;
+                    }.bind(this));
+                }
+
+                this._Attach.then(function (oDialog) {
+                    oDialog.open();
+                    this.getView().byId("idBusyIndicator").setVisible(true);
+                }.bind(this));
+            },
+
+            onDialogClose: function () {
+                this.oWizardModel.setProperty("/AttBtnId", "");
+                var oUploadFileSettingsModel = sap.ui.getCore().getModel("oUploadFileSettingsModel");
+                this._Attach.then(function (oDialog) {
+                    oDialog.close();
+                    oDialog.destroy();
+                    oUploadFileSettingsModel = null;
+                    sap.ui.getCore().setModel(oUploadFileSettingsModel, "oUploadFileSettingsModel");
+                }.bind(this));
+                this._Attach = undefined;
+            },
+
+            onCountryValueHelpRequest: function (oEvent) {
+                var sInputValue = oEvent.getSource().getValue(),
+                    oView = this.getView();
+
+                if (!this._ccValueHelpDialog) {
+                    this._ccValueHelpDialog = Fragment.load({
+                        id: oView.getId(),
+                        name: "zbmlgp2psupreg02.project1.ext.fragment.CountryVH",
+                        controller: this
+                    }).then(function (oDialog) {
+                        oView.addDependent(oDialog);
+                        return oDialog;
+                    });
+                }
+                this._ccValueHelpDialog.then(function (oDialog) {
+
+                    var match = sInputValue.match(/\(([^)]+)\)/);
+                    var sFilterValue = (match && match[1]) ? match[1] : sInputValue;
+                    // // Create a filter for the binding
+                    oDialog.getBinding("items").filter([new Filter("Country", FilterOperator.Contains, sFilterValue)],
+                        [new Filter("CountryName", FilterOperator.Contains, sFilterValue)]);
+
+                    // Open ValueHelpDialog filtered by the input's value
+                    oDialog.open(sInputValue);
+                });
+            },
+
+            onCountryValueHelpClose: function (oEvent) {
+                var oSelectedItem = oEvent.getParameter("selectedItem");
+
+                oEvent.getSource().getBinding("items").filter([]);
+
+                if (!oSelectedItem) {
+                    return;
+                }
+                var oSelectedValue = oSelectedItem.getDescription() + " (" + oSelectedItem.getTitle() + ")";
+                this.byId("supCountry").setValue(oSelectedValue);
+
+                this._clearInputError("supCountry");
+
+
+                const oWizardModel = this.getView().getModel("wizardModel");
+                oWizardModel.setProperty("/DisplayCountry", `${oSelectedValue}`);
+
+                this.onSupplierCountrySelected(oSelectedItem.getTitle());
+            },
+
+            onCountryValueHelpSearch: function (oEvent) {
+                var sValue = oEvent.getParameter("value");
+                var oFilter = new Filter("Country", FilterOperator.Contains, sValue);
+
+                oEvent.getSource().getBinding("items").filter([oFilter]);
+            },
+
+            onCountrySuggestionSelect: function (oEvent) {
+                var oSelectedItem = oEvent.getParameter("selectedRow"); // Get selected row
+
+                if (!oSelectedItem) {
+                    return;
+                }
+
+                var sCountry = oSelectedItem.getCells()[0].getText();
+                var sCountryName = oSelectedItem.getCells()[1].getText();
+
+                this._clearInputError("supCountry");
+
+
+                const oWizardModel = this.getView().getModel("wizardModel");
+                oWizardModel.setProperty("/DisplayCountry", `${sCountryName} (${sCountry})`);
+
+                // Set value as "Key - Description"
+                this.byId("supCountry").setValue(sCountryName + " (" + sCountry + ")");
+                this.onSupplierCountrySelected(sCountry);
+            },
+            _clearInputError: function (sId) {
+                var oInput = this.byId(sId);
+                if (oInput) {
+                    oInput.setValueState("None");
+                }
+            },
+
+            _filterDependentComboBoxes: function (sCountry) {
+                const oView = this.getView();
+
+                // Map of dependent ComboBoxes and the corresponding filter field in their entity
+                const aDependencies = [
+                    { id: "state", filterProp: "Country" },
+                    { id: "ConutryCode_2", filterProp: "Country" },
+                    { id: "ConutryCode_1", filterProp: "Country" },
+                    { id: "pymtMthd", filterProp: "Country" }
+                    // Add more if needed
+                ];
+
+                aDependencies.forEach(dep => {
+                    const oComboBox = oView.byId(dep.id);
+                    if (oComboBox) {
+                        const oBinding = oComboBox.getBinding("items");
+                        if (oBinding) {
+                            oBinding.filter([
+                                new sap.ui.model.Filter(dep.filterProp, sap.ui.model.FilterOperator.EQ, sCountry)
+                            ]);
+                        }
+                    }
+                });
+            },
+            _loadinitialValhlp: function () {
+                const oWizardModel = this.getView().getModel("wizardModel");
+                const sCountryKey = oWizardModel.getProperty("/_AddressNum/CountryKey");
+                const sPaymentTerm = oWizardModel.getProperty("/GeneralViewData/PaymentTerms");
+
+                if (sCountryKey) {
+                    const oListBinding = this.oModel.bindList("/BankCountry_VH", undefined, undefined, [
+                        new Filter("Country", FilterOperator.EQ, sCountryKey)
+                    ]);
+
+                    oListBinding.requestContexts(0, 1).then((aContexts) => {
+                        if (aContexts.length) {
+                            const oData = aContexts[0].getObject();
+                            oWizardModel.setProperty("/DisplayCountry", `${oData.CountryName} (${oData.Country})`);
+                        } else {
+                            oWizardModel.setProperty("/DisplayCountry", sCountryKey);
+                        }
+                    }).catch((error) => {
+                        console.error("Failed to load country name:", error);
+                        oWizardModel.setProperty("/DisplayCountry", sCountryKey);
+                    });
+                }
+                if (sPaymentTerm) {
+                    const oPymtBinding = this.oModel.bindList("/PaymentTerm_VH", undefined, undefined, [
+                        new Filter("PaymentTerm", FilterOperator.EQ, sPaymentTerm)
+                    ]);
+
+                    oPymtBinding.requestContexts(0, 1).then((aContexts) => {
+                        if (aContexts.length) {
+                            const oData = aContexts[0].getObject();
+                            if (oData.PaymentTermText === undefined) {
+                                oWizardModel.setProperty("/DisplayPaymentTerms", `${oData.PaymentTerm}`);
+                            } else {
+                                oWizardModel.setProperty("/DisplayPaymentTerms", `${oData.PaymentTermText} (${oData.PaymentTerm})`);
+                            }
+                        } else {
+                            oWizardModel.setProperty("/DisplayPaymentTerms", sPaymentTerm);
+                        }
+                    }).catch((error) => {
+                        console.error("Failed to load payment term text:", error);
+                        oWizardModel.setProperty("/DisplayPaymentTerms", sPaymentTerm);
+                    });
+
+                }
+            },
+
+            // Payment Term Value Help dialog
+            onPymnttrmValueHelpRequest: function (oEvent) {
+                var sInputValue = oEvent.getSource().getValue(),
+                    oView = this.getView();
+
+                if (!this._ppValueHelpDialog) {
+                    this._ppValueHelpDialog = Fragment.load({
+                        id: oView.getId(),
+                        name: "zbmlgp2psupreg02.project1.ext.fragment.PaymentTermVH",
+                        controller: this
+                    }).then(function (oDialog) {
+                        oView.addDependent(oDialog);
+                        return oDialog;
+                    });
+                }
+                this._ppValueHelpDialog.then(function (oDialog) {
+
+                    var match = sInputValue.match(/\(([^)]+)\)/);
+                    var sFilterValue = (match && match[1]) ? match[1] : sInputValue;
+                    // // Create a filter for the binding
+                    oDialog.getBinding("items").filter([new Filter("PaymentTerm", FilterOperator.Contains, sFilterValue)],
+                        [new Filter("DayLimit", FilterOperator.Contains, sFilterValue)],
+                        [new Filter("PaymentTermDesc", FilterOperator.Contains, sFilterValue)]);
+
+                    // Open ValueHelpDialog filtered by the input's value
+                    oDialog.open(sInputValue);
+                });
+            },
+
+            onPaymentTermSelect: function (oEvent) {
+                // var oSelectedItem = oEvent.getParameter("selectedItem");
+                // oEvent.getSource().getBinding("items").filter([]);
+
+                // if (!oSelectedItem) {
+                //     return;
+                // }
+                // var oSelectedValue = oSelectedItem.getInfo() + " (" + oSelectedItem.getTitle() + ")";
+                // this.byId("pymtTerms").setValue(oSelectedValue);
+
+                // const oWizardModel = this.getView().getModel("wizardModel");
+                // oWizardModel.setProperty("/DisplayPaymentTerms", `${oSelectedValue}`);
+
+
+                const oSelectedItem = oEvent.getParameter("selectedItem")
+
+                if (!oSelectedItem) {
+                    return;
+                }
+                const oContext = oSelectedItem.getBindingContext();
+                const oData = oContext.getObject();
+
+                const sDisplayValue = `${oData.PaymentTermDesc} (${oData.PaymentTerm})`;
+                this.byId("pymtTerms").setValue(sDisplayValue);
+
+                const oWizardModel = this.getView().getModel("wizardModel");
+                oWizardModel.setProperty("/DisplayPaymentTerms", sDisplayValue);
+
+
+            },
+
+            onPaymentTermSearch: function (oEvent) {
+                var sValue = oEvent.getParameter("value");
+                var oFilter = new Filter("PaymentTerm", FilterOperator.Contains, sValue);
+
+                oEvent.getSource().getBinding("items").filter([oFilter]);
+            },
+
+            onPymnttrmSuggestionSelect: function (oEvent) {
+                var oSelectedItem = oEvent.getParameter("selectedRow"); // Get selected row
+                if (!oSelectedItem) {
+                    return;
+                }
+
+                var sPaymntTerm = oSelectedItem.getCells()[0].getText();
+                var sDailyLimit = oSelectedItem.getCells()[1].getText();
+                var sPaymntTermDesc = oSelectedItem.getCells()[2].getText();
+
+                const oWizardModel = this.getView().getModel("wizardModel");
+                oWizardModel.setProperty("/DisplayPaymentTerms", `${sPaymntTermDesc} (${sPaymntTerm})`);
+
+                // Set value as "Key - Description"
+                this.byId("pymtTerms").setValue(sPaymntTermDesc + " (" + sPaymntTerm + ")");
+
+            },
+            onMakeBankFieldsEditable: function () {
+                var oView = this.getView();
+
+                // Get the Input controls by their IDs
+                var oBankNum = oView.byId("bankNum");
+                var oSwiftInput = oView.byId("swiftInput");
+
+                // Set editable = true
+                if (oBankNum) {
+                    oBankNum.setEditable(true);
+                }
+
+                if (oSwiftInput) {
+                    oSwiftInput.setEditable(true);
+                }
+            },
+            formatAttDiaTitle: function (btnId) {
+
+                switch (btnId) {
+                    case "BankUploadBtn":
+                        return this.i18n.getText("title.BankAuthLetter");
+                        break;
+                    case "TaxUploadBtn":
+                        return this.i18n.getText("title.TaxForm");
+                        break;
+                    case "withHoldingButton":
+                        return this.i18n.getText("title.WHTCert");
+                        break;
+                    default:
+                        return this.i18n.getText("title.DefaultAttDia");
+                        break;
+                }
+            },
+            FnvHPmethod: function () {
+                const oListBinding = this.oModel.bindList("/PaymentMethod_VH", null, [], [], {
+                    $$ownRequest: true
+                });
+
+                oListBinding.requestContexts(0, 1).then((aContexts) => {
+                    if (aContexts.length) {
+                        const oData = aContexts[0].getObject();
+                        // const oArguments = `PaymentMethod='${oData.PaymentMethod}',PaymentMethodDesc='${oData.PaymentMethodDesc}'`;
+                        var oArgumentsP = "PaymentMethod=" + oData.PaymentMethod;
+                        var sPathP = "/PaymentMethod_VH(" + oArgumentsP + ")";
+                        // const oCtx = this.getView().getBindingContext();
+                        // oCtx.setProperty("PaymentMethod", "01");
+
+                        this.getView().byId("pymtMthdm").bindContext(
+                            sPathP,
+                            null,  //oContext
+                        );
+                    }
+                }).catch((error) => {
+                    console.error("Failed to load country name:", error);
+                });
+            },
+
+
+
+
+
+
+        });
+    }
+);
+
